@@ -20,12 +20,12 @@ namespace CooperadoraISFT94.Views.Shell
                 [Rol.Administrador] = new[]
                 {
                     new Modulo("Administración", () => new UsuariosView()),
-                    new Modulo("Movimientos", () => new MovimientosView()),
                     new Modulo("Auditoría", () => new AuditoriaView())
                 },
                 [Rol.Operador] = new[]
                 {
-                    new Modulo("Socios y cuotas", () => new OperadorView())
+                    new Modulo("Socios y cuotas", () => new OperadorView()),
+                    new Modulo("Ingresos", () => new IngresoView())
                 },
                 [Rol.Contador] = new[]
                 {

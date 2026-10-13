@@ -7,7 +7,7 @@ using CooperadoraISFT94.Services.Interfaces;
 
 namespace CooperadoraISFT94.Controllers
 {
-    /// <summary>Consulta de movimientos (dashboard). Disponible para Contador y Administrador.</summary>
+    /// <summary>Consulta de movimientos (dashboard). Solo para el Contador.</summary>
     public class MovimientoController : BaseController
     {
         private readonly IMovimientoService _movimientos;
@@ -24,13 +24,13 @@ namespace CooperadoraISFT94.Controllers
 
         public IReadOnlyList<CajaDto> ObtenerCajas()
         {
-            ExigirAlgunRol(Rol.Contador, Rol.Administrador);
+            ExigirRol(Rol.Contador);
             return _cajas.ObtenerTodas();
         }
 
         public IReadOnlyList<MovimientoDto> Obtener(MovimientoFiltroDto filtro)
         {
-            ExigirAlgunRol(Rol.Contador, Rol.Administrador);
+            ExigirRol(Rol.Contador);
             return _movimientos.Obtener(filtro);
         }
     }

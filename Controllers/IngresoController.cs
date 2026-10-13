@@ -19,7 +19,7 @@ namespace CooperadoraISFT94.Controllers
 
         public IngresoDto Registrar(IngresoCrearDto dto)
         {
-            ExigirRol(Rol.Contador);
+            ExigirRol(Rol.Operador);
             return _ingresos.Registrar(dto, UsuarioActualId);
         }
     }

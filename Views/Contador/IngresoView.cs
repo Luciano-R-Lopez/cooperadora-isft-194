@@ -8,7 +8,7 @@ using CooperadoraISFT94.Views.Common;
 namespace CooperadoraISFT94.Views.Contador
 {
     /// <summary>
-    /// Pantalla 3.2: carga de ingresos que no son cuotas (donaciones, subsidios).
+    /// Carga de ingresos que no son cuotas (donaciones, subsidios), a cargo del Operador.
     /// Las cuotas sociales se cobran desde la ficha del socio.
     /// </summary>
     public class IngresoView : UserControl, IRefrescable

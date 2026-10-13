@@ -20,7 +20,7 @@ namespace CooperadoraISFT94.Controllers
 
         public IReadOnlyList<MedioPagoDto> ObtenerMediosPago()
         {
-            ExigirAlgunRol(Rol.Operador, Rol.Contador, Rol.Administrador);
+            ExigirAlgunRol(Rol.Operador, Rol.Contador);
             return _catalogos.ObtenerMediosPago();
         }
 

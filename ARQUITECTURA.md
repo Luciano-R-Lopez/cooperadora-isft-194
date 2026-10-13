@@ -50,6 +50,7 @@ Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
 - **Auditoría:** cada servicio llama a `IAuditoriaService.Registrar` al dar de alta / modificar / dar de baja
   (desactivar un usuario = `Baja`). Solo la ve el administrador.
 - **Módulos por rol:** `Views/Shell/ModulosPorRol.cs`. Sumar un módulo es agregar una línea ahí.
+- **Permisos:** Operador = socios, cuotas e ingresos (donación/subsidio); Contador = caja, egresos y consulta de movimientos; Administrador = usuarios y auditoría.
 
 ### Agregar un medio de pago o motivo de egreso
 Son filas de datos (`MedioPagoRepository` / `MotivoEgresoRepository`), no código: los desplegables los leen

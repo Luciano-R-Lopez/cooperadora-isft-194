@@ -17,10 +17,10 @@ namespace CooperadoraISFT94.Controllers
             _cajas = cajas;
         }
 
-        /// <summary>Devuelve null cuando no hay ninguna caja abierta.</summary>
+        /// <summary>Devuelve null cuando no hay ninguna caja abierta. Solo lectura: el Operador la consulta para saber si puede cobrar.</summary>
         public CajaDto? ObtenerActiva()
         {
-            ExigirRol(Rol.Contador);
+            ExigirAlgunRol(Rol.Contador, Rol.Operador);
             return _cajas.ObtenerActiva();
         }
 

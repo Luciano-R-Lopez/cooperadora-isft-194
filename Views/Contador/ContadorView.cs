@@ -2,7 +2,7 @@ using CooperadoraISFT94.Views.Common;
 
 namespace CooperadoraISFT94.Views.Contador
 {
-    /// <summary>Contenedor del módulo Contador: caja, ingresos, egresos y movimientos.</summary>
+    /// <summary>Contenedor del módulo Contador: caja, egresos y movimientos.</summary>
     public class ContadorView : UserControl
     {
         private readonly TabControl _tabs = new() { Dock = DockStyle.Fill };
@@ -12,7 +12,6 @@ namespace CooperadoraISFT94.Views.Contador
             Dock = DockStyle.Fill;
 
             AgregarTab("Caja", new CajaView());
-            AgregarTab("Ingresos", new IngresoView());
             AgregarTab("Egresos", new EgresoView());
             AgregarTab("Movimientos", new MovimientosView());
 
