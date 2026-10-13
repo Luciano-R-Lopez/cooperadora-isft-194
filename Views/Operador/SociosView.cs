@@ -53,6 +53,15 @@ namespace CooperadoraISFT94.Views.Operador
             _cmbCategoria.DropDownStyle = ComboBoxStyle.DropDownList;
             _cmbCategoria.DataSource = Enum.GetValues<Categoria>();
 
+            // Un Responsable no puede tener responsable: se deshabilita y se limpia el desplegable.
+            _cmbCategoria.SelectedIndexChanged += (_, _) =>
+            {
+                var esResponsable = _cmbCategoria.SelectedItem is Categoria.Responsable;
+                _cmbResponsable.Enabled = !esResponsable;
+                if (esResponsable && _cmbResponsable.Items.Count > 0)
+                    _cmbResponsable.SelectedIndex = 0;
+            };
+
             _cmbResponsable.Location = new Point(15, 373);
             _cmbResponsable.Size = new Size(255, 28);
             _cmbResponsable.DropDownStyle = ComboBoxStyle.DropDownList;

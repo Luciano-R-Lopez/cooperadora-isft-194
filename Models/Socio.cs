@@ -65,6 +65,8 @@ namespace CooperadoraISFT94.Models
             {
                 if (!Enum.IsDefined(value))
                     throw new ReglaNegocioException("La categoría no es válida.");
+                if (value == Categoria.Responsable && Responsable is not null)
+                    throw new ReglaNegocioException("Un socio que tiene responsable no puede pasar a ser Responsable.");
                 _categoria = value;
             }
         }
@@ -79,6 +81,8 @@ namespace CooperadoraISFT94.Models
         {
             if (responsable is not null)
             {
+                if (EsResponsable)
+                    throw new ReglaNegocioException("Un socio con categoría Responsable no puede tener responsable.");
                 if (ReferenceEquals(responsable, this))
                     throw new ReglaNegocioException("Un socio no puede ser su propio responsable.");
                 if (!responsable.EsResponsable)
