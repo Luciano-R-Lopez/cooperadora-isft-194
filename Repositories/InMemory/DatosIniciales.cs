@@ -52,7 +52,9 @@ namespace CooperadoraISFT94.Repositories.InMemory
 
             var lucia = socios.Agregar(new Socio("Lucía", "Fernández", "30123456", "1155550101", "lucia@mail.com", Categoria.Socio));
             var martin = socios.Agregar(new Socio("Martín", "Gómez", "28456789", "1155550202", "martin@mail.com", Categoria.Responsable));
-            socios.Agregar(new Socio("Sofía", "Pérez", "40111222", "", "", Categoria.Socio));
+            var sofia = new Socio("Sofía", "Pérez", "40111222", "", "", Categoria.Socio);
+            sofia.AsignarResponsable(martin);
+            socios.Agregar(sofia);
 
             // Las cuotas nacen pendientes: pasan a pagadas cuando se cobran (con su ingreso en caja).
             cuotas.Agregar(new Cuota(lucia, 5000m, 2025));

@@ -2,6 +2,7 @@ using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Controllers;
 using CooperadoraISFT94.DTOs.Catalogos;
 using CooperadoraISFT94.DTOs.Cuotas;
+using CooperadoraISFT94.DTOs.Socios;
 using CooperadoraISFT94.Enums;
 using CooperadoraISFT94.Views.Common;
 
@@ -41,7 +42,7 @@ namespace CooperadoraISFT94.Views.Operador
             Dock = DockStyle.Fill;
 
             _lblSocio.Dock = DockStyle.Top;
-            _lblSocio.Height = 60;
+            _lblSocio.Height = 90;
             _lblSocio.Padding = new Padding(10, 10, 0, 0);
             _lblSocio.Font = new Font(Font.FontFamily, 11f, FontStyle.Bold);
 
@@ -81,12 +82,24 @@ namespace CooperadoraISFT94.Views.Operador
             try
             {
                 var socio = _socios.ObtenerPorId(_socioId);
-                _lblSocio.Text = $"{socio.NombreCompleto}\nDNI: {socio.Dni}   |   Categoría: {socio.Categoria}";
+                _lblSocio.Text = $"{socio.NombreCompleto}\nDNI: {socio.Dni}   |   Categoría: {socio.Categoria}\n{DescribirVinculo(socio)}";
             }
             catch (NegocioException ex)
             {
                 _lblSocio.Text = ex.Message;
             }
+        }
+
+        /// <summary>Quién es su responsable, o a qué socios tiene a cargo si él es responsable.</summary>
+        private string DescribirVinculo(SocioDto socio)
+        {
+            if (socio.Categoria != Categoria.Responsable)
+                return $"Responsable: {socio.ResponsableTexto}";
+
+            var aCargo = _socios.ObtenerACargo(socio.Id);
+            return aCargo.Count == 0
+                ? "Socios a cargo: ninguno"
+                : "Socios a cargo: " + string.Join("; ", aCargo.Select(s => s.NombreCompleto));
         }
 
         private void CargarCuotas(int? seleccionarId = null)

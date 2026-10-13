@@ -33,6 +33,10 @@ namespace CooperadoraISFT94.Services
             if (_socios.ObtenerPorDni(socio.Dni) is not null)
                 throw new ReglaNegocioException("Ya existe un socio registrado con ese DNI.");
 
+            // El propio Socio valida que el elegido sea un responsable.
+            if (dto.ResponsableId is int responsableId)
+                socio.AsignarResponsable(_socios.ObtenerExistente(responsableId));
+
             _socios.Agregar(socio);
             _auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(Socio), socio.Id);
 
@@ -44,5 +48,14 @@ namespace CooperadoraISFT94.Services
 
         public IReadOnlyList<SocioDto> Buscar(string? filtro) =>
             _socios.Buscar(filtro).Select(SocioMapper.ADto).ToList();
+
+        public IReadOnlyList<SocioDto> ObtenerResponsables() =>
+            _socios.ObtenerResponsables().Select(SocioMapper.ADto).ToList();
+
+        public IReadOnlyList<SocioDto> ObtenerACargo(int responsableId)
+        {
+            var responsable = _socios.ObtenerExistente(responsableId);
+            return _socios.ObtenerACargo(responsable).Select(SocioMapper.ADto).ToList();
+        }
     }
 }

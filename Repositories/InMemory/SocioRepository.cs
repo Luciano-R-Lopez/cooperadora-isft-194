@@ -13,6 +13,18 @@ namespace CooperadoraISFT94.Repositories.InMemory
         public Socio? ObtenerPorDni(string dni) =>
             Items.FirstOrDefault(s => s.Dni == dni);
 
+        public IReadOnlyList<Socio> ObtenerResponsables() =>
+            Items.Where(s => s.EsResponsable)
+                 .OrderBy(s => s.Apellido)
+                 .ThenBy(s => s.Nombre)
+                 .ToList();
+
+        public IReadOnlyList<Socio> ObtenerACargo(Socio responsable) =>
+            Items.Where(s => ReferenceEquals(s.Responsable, responsable))
+                 .OrderBy(s => s.Apellido)
+                 .ThenBy(s => s.Nombre)
+                 .ToList();
+
         public IReadOnlyList<Socio> Buscar(string? filtro)
         {
             if (string.IsNullOrWhiteSpace(filtro))

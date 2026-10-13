@@ -10,8 +10,15 @@ namespace CooperadoraISFT94.DTOs.Socios
         string Dni,
         string Telefono,
         string Email,
-        Categoria Categoria)
+        Categoria Categoria,
+        int? ResponsableId,
+        string? Responsable)
     {
         public string NombreCompleto => $"{Nombre} {Apellido}";
+
+        /// <summary>"Apellido, Nombre (DNI)" para desplegables.</summary>
+        public string Descripcion => $"{Apellido}, {Nombre} ({Dni})";
+
+        public string ResponsableTexto => Responsable ?? "-";
     }
 }

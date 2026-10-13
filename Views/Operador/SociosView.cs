@@ -17,6 +17,7 @@ namespace CooperadoraISFT94.Views.Operador
         private readonly TextBox _txtTelefono = Ui.Campo(15, 208, 255);
         private readonly TextBox _txtEmail = Ui.Campo(15, 263, 255);
         private readonly ComboBox _cmbCategoria = new();
+        private readonly ComboBox _cmbResponsable = new();
         private readonly TextBox _txtBuscar = Ui.Campo(165, 8, 280);
         private readonly DataGridView _grilla = Ui.CrearGrilla();
         private readonly Button _btnVerCuotas = new();
@@ -30,6 +31,7 @@ namespace CooperadoraISFT94.Views.Operador
         {
             _controller = controller;
             ConstruirInterfaz();
+            CargarResponsables();
             CargarSocios();
         }
 
@@ -51,10 +53,14 @@ namespace CooperadoraISFT94.Views.Operador
             _cmbCategoria.DropDownStyle = ComboBoxStyle.DropDownList;
             _cmbCategoria.DataSource = Enum.GetValues<Categoria>();
 
+            _cmbResponsable.Location = new Point(15, 373);
+            _cmbResponsable.Size = new Size(255, 28);
+            _cmbResponsable.DropDownStyle = ComboBoxStyle.DropDownList;
+
             var btnGuardar = new Button
             {
                 Text = "Guardar socio",
-                Location = new Point(15, 365),
+                Location = new Point(15, 435),
                 Size = new Size(255, 35)
             };
             btnGuardar.Click += (_, _) => GuardarSocio();
@@ -67,6 +73,7 @@ namespace CooperadoraISFT94.Views.Operador
                 Ui.Etiqueta("Teléfono", 15, 190), _txtTelefono,
                 Ui.Etiqueta("Email", 15, 245), _txtEmail,
                 Ui.Etiqueta("Categoría", 15, 300), _cmbCategoria,
+                Ui.Etiqueta("Responsable (opcional)", 15, 355), _cmbResponsable,
                 btnGuardar
             });
 
@@ -96,6 +103,7 @@ namespace CooperadoraISFT94.Views.Operador
             Ui.AgregarColumna(_grilla, "Teléfono", nameof(SocioDto.Telefono));
             Ui.AgregarColumna(_grilla, "Email", nameof(SocioDto.Email));
             Ui.AgregarColumna(_grilla, "Categoría", nameof(SocioDto.Categoria));
+            Ui.AgregarColumna(_grilla, "Responsable", nameof(SocioDto.ResponsableTexto));
             _grilla.CellDoubleClick += (_, e) => { if (e.RowIndex >= 0) SolicitarVerCuotas(); };
 
             // Orden de agregado: primero el que llena, después los bordes.
@@ -114,7 +122,8 @@ namespace CooperadoraISFT94.Views.Operador
                 _txtDni.Text,
                 _txtTelefono.Text,
                 _txtEmail.Text,
-                (Categoria)_cmbCategoria.SelectedItem!);
+                (Categoria)_cmbCategoria.SelectedItem!,
+                (_cmbResponsable.SelectedItem as Opcion<int?>)?.Valor);
 
             try
             {
@@ -127,8 +136,28 @@ namespace CooperadoraISFT94.Views.Operador
             }
 
             LimpiarFormulario();
+            CargarResponsables();
             CargarSocios();
             Ui.Info("Socio registrado correctamente.");
+        }
+
+        /// <summary>Recarga los responsables elegibles (más "sin responsable") y deja elegida la primera opción.</summary>
+        private void CargarResponsables()
+        {
+            _cmbResponsable.Items.Clear();
+            _cmbResponsable.Items.Add(new Opcion<int?>("(Sin responsable)", null));
+
+            try
+            {
+                foreach (var r in _controller.ObtenerResponsables())
+                    _cmbResponsable.Items.Add(new Opcion<int?>(r.Descripcion, r.Id));
+            }
+            catch (NegocioException ex)
+            {
+                Ui.Error(ex.Message);
+            }
+
+            _cmbResponsable.SelectedIndex = 0;
         }
 
         private void CargarSocios()

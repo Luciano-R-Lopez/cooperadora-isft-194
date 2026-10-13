@@ -29,6 +29,18 @@ namespace CooperadoraISFT94.Controllers
             return _socios.ObtenerPorId(id);
         }
 
+        public IReadOnlyList<SocioDto> ObtenerResponsables()
+        {
+            ExigirRol(Rol.Operador);
+            return _socios.ObtenerResponsables();
+        }
+
+        public IReadOnlyList<SocioDto> ObtenerACargo(int responsableId)
+        {
+            ExigirRol(Rol.Operador);
+            return _socios.ObtenerACargo(responsableId);
+        }
+
         public IReadOnlyList<SocioDto> Buscar(string? filtro)
         {
             ExigirRol(Rol.Operador);

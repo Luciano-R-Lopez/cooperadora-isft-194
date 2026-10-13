@@ -7,6 +7,7 @@ namespace CooperadoraISFT94.Services
     public static class SocioMapper
     {
         public static SocioDto ADto(Socio s) =>
-            new(s.Id, s.Nombre, s.Apellido, s.Dni, s.Telefono, s.Email, s.Categoria);
+            new(s.Id, s.Nombre, s.Apellido, s.Dni, s.Telefono, s.Email, s.Categoria,
+                s.Responsable?.Id, s.Responsable?.ObtenerDescripcion());
     }
 }

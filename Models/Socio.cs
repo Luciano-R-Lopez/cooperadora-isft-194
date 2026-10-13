@@ -69,6 +69,25 @@ namespace CooperadoraISFT94.Models
             }
         }
 
+        /// <summary>Socio de categoría Responsable que responde por este socio; null si no tiene.</summary>
+        public Socio? Responsable { get; private set; }
+
+        public bool EsResponsable => Categoria == Categoria.Responsable;
+
+        /// <summary>Asigna (o quita, con null) el responsable de este socio.</summary>
+        public void AsignarResponsable(Socio? responsable)
+        {
+            if (responsable is not null)
+            {
+                if (ReferenceEquals(responsable, this))
+                    throw new ReglaNegocioException("Un socio no puede ser su propio responsable.");
+                if (!responsable.EsResponsable)
+                    throw new ReglaNegocioException("El responsable elegido no tiene la categoría Responsable.");
+            }
+
+            Responsable = responsable;
+        }
+
         /// <summary>"Apellido, Nombre (DNI)": para listas desplegables y detalles.</summary>
         public string ObtenerDescripcion() => $"{Apellido}, {Nombre} ({Dni})";
     }
