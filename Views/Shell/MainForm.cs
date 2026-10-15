@@ -57,7 +57,7 @@ namespace CooperadoraISFT94.Views.Shell
             barra.Controls.Add(_lblUsuario);
             barra.Controls.Add(btnCerrarSesion);
 
-            var tabs = new TabControl { Dock = DockStyle.Fill };
+            var tabs = new Pestanias { Dock = DockStyle.Fill };
 
             var modulos = ModulosPorRol.De(_usuario.Rol);
             if (modulos.Count == 0)

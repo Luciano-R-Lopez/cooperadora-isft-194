@@ -187,7 +187,7 @@ namespace CooperadoraISFT94.Views.Contador
             if (resumen.Diferencia is decimal diferencia)
             {
                 _lblDiferencia.Text = diferencia.ToString("C2");
-                _lblDiferencia.ForeColor = diferencia == 0 ? Tema.Texto : Tema.Peligro;
+                _lblDiferencia.ForeColor = diferencia == 0 ? Tema.Texto : Tema.PeligroTexto;
             }
             else
             {

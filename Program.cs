@@ -1,3 +1,4 @@
+using System.Globalization;
 using CooperadoraISFT94.Repositories.InMemory;
 using CooperadoraISFT94.Views.Auth;
 using CooperadoraISFT94.Views.Common;
@@ -11,6 +12,14 @@ namespace CooperadoraISFT94
         static void Main()
         {
             ApplicationConfiguration.Initialize();
+
+            // Montos, fechas y números siempre en formato argentino ("$ 5.000,00"), sin depender de la
+            // configuración regional de Windows (por ejemplo, "español (Latinoamérica)" muestra "XDR").
+            var argentina = new CultureInfo("es-AR");
+            CultureInfo.DefaultThreadCurrentCulture = argentina;
+            CultureInfo.DefaultThreadCurrentUICulture = argentina;
+            CultureInfo.CurrentCulture = argentina;
+            CultureInfo.CurrentUICulture = argentina;
 
             // Los errores de negocio (NegocioException) los atrapa cada vista; cualquier otra excepción
             // es un error de programación y se informa acá en lugar de cerrar la aplicación sin aviso.

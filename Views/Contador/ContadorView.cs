@@ -5,7 +5,7 @@ namespace CooperadoraISFT94.Views.Contador
     /// <summary>Contenedor del módulo Contador: caja, egresos y movimientos.</summary>
     public class ContadorView : UserControl
     {
-        private readonly TabControl _tabs = new() { Dock = DockStyle.Fill };
+        private readonly TabControl _tabs = new Pestanias { Dock = DockStyle.Fill };
 
         public ContadorView()
         {

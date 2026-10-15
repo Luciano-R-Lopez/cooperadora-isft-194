@@ -23,7 +23,7 @@ namespace CooperadoraISFT94.Views.Auth
             Tema.Aplicar(this);
 
             // Colores propios del login, después del tema para que no los pise.
-            _lblError.ForeColor = Tema.Peligro;
+            _lblError.ForeColor = Tema.PeligroTexto;
         }
 
         private void ConstruirInterfaz()
@@ -45,7 +45,7 @@ namespace CooperadoraISFT94.Views.Auth
             var titulo = Tema.ConColoresPropios(new Label
             {
                 Text = "Cooperadora ISFT 94",
-                ForeColor = Tema.Encabezado,
+                ForeColor = Tema.Texto,
                 Font = new Font(Font.FontFamily, 14f, FontStyle.Bold),
                 AutoSize = false,
                 TextAlign = ContentAlignment.MiddleCenter,

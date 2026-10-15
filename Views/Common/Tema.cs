@@ -1,28 +1,32 @@
+using System.Runtime.InteropServices;
+
 namespace CooperadoraISFT94.Views.Common
 {
     /// <summary>
-    /// Paleta de colores sobria y su aplicación a los controles. Las ventanas llaman a <see cref="Aplicar"/>
+    /// Paleta de colores oscura y sobria, y su aplicación a los controles. Las ventanas llaman a <see cref="Aplicar"/>
     /// una vez; los controles que se agregan después (por ejemplo, al navegar entre pantallas) también se estilan.
     /// </summary>
     public static class Tema
     {
-        // Paleta: grises azulados neutros, un azul apagado para las acciones y verde/rojo suaves para estados.
-        public static readonly Color Fondo = ColorTranslator.FromHtml("#F3F4F6");
-        public static readonly Color Superficie = Color.White;
-        public static readonly Color Borde = ColorTranslator.FromHtml("#D4D9E0");
-        public static readonly Color Texto = ColorTranslator.FromHtml("#1F2933");
-        public static readonly Color TextoSecundario = ColorTranslator.FromHtml("#6B7480");
-        public static readonly Color Encabezado = ColorTranslator.FromHtml("#2D3A4A");
-        public static readonly Color EncabezadoTexto = ColorTranslator.FromHtml("#F3F4F6");
-        public static readonly Color Primario = ColorTranslator.FromHtml("#3D5A80");
-        public static readonly Color PrimarioHover = ColorTranslator.FromHtml("#324A6A");
-        public static readonly Color Seleccion = ColorTranslator.FromHtml("#DCE3EC");
-        public static readonly Color EncabezadoGrilla = ColorTranslator.FromHtml("#E7EAEE");
-        public static readonly Color Deshabilitado = ColorTranslator.FromHtml("#C9CED6");
-        public static readonly Color Exito = ColorTranslator.FromHtml("#3F7A5A");
-        public static readonly Color ExitoSuave = ColorTranslator.FromHtml("#E7F0EA");
-        public static readonly Color Peligro = ColorTranslator.FromHtml("#A6463F");
-        public static readonly Color PeligroSuave = ColorTranslator.FromHtml("#F5E6E4");
+        // Paleta oscura: grises azulados, un azul apagado para las acciones y verde/rojo apagados para estados.
+        public static readonly Color Fondo = ColorTranslator.FromHtml("#1E2228");
+        public static readonly Color Superficie = ColorTranslator.FromHtml("#272C34");
+        public static readonly Color Borde = ColorTranslator.FromHtml("#3B424D");
+        public static readonly Color Texto = ColorTranslator.FromHtml("#E3E6EA");
+        public static readonly Color TextoSecundario = ColorTranslator.FromHtml("#9AA3AE");
+        public static readonly Color Encabezado = ColorTranslator.FromHtml("#15181D");
+        public static readonly Color EncabezadoTexto = ColorTranslator.FromHtml("#E3E6EA");
+        public static readonly Color Primario = ColorTranslator.FromHtml("#45689A");
+        public static readonly Color PrimarioHover = ColorTranslator.FromHtml("#5479AD");
+        public static readonly Color Seleccion = ColorTranslator.FromHtml("#33435A");
+        public static readonly Color EncabezadoGrilla = ColorTranslator.FromHtml("#2F353F");
+        public static readonly Color Deshabilitado = ColorTranslator.FromHtml("#3B424D");
+        public static readonly Color Exito = ColorTranslator.FromHtml("#3D7356");
+        public static readonly Color ExitoSuave = ColorTranslator.FromHtml("#24352C");
+        public static readonly Color Peligro = ColorTranslator.FromHtml("#9A4540");
+        public static readonly Color PeligroSuave = ColorTranslator.FromHtml("#3A2729");
+        /// <summary>Rojo más claro, legible como texto sobre el fondo oscuro.</summary>
+        public static readonly Color PeligroTexto = ColorTranslator.FromHtml("#E58C83");
 
         /// <summary>Marca (en Tag) de los controles que definen sus propios colores y el tema no debe pisar.</summary>
         private static readonly object ColoresPropios = new();
@@ -70,6 +74,7 @@ namespace CooperadoraISFT94.Views.Common
                 case Form form:
                     form.BackColor = Fondo;
                     form.ForeColor = Texto;
+                    UsarBarraDeTituloOscura(form);
                     break;
                 case Button boton:
                     EstilarBoton(boton);
@@ -88,13 +93,13 @@ namespace CooperadoraISFT94.Views.Common
                     numero.BorderStyle = BorderStyle.FixedSingle;
                     break;
                 case ComboBox combo:
-                    combo.BackColor = Superficie;
-                    combo.ForeColor = Texto;
-                    combo.FlatStyle = FlatStyle.Flat;
+                    EstilarDesplegable(combo);
                     break;
                 case GroupBox grupo:
                     grupo.BackColor = Fondo;
                     grupo.ForeColor = TextoSecundario;
+                    grupo.Paint -= PintarRecuadro;
+                    grupo.Paint += PintarRecuadro;
                     break;
                 case CheckBox check:
                     check.ForeColor = Texto;
@@ -111,6 +116,80 @@ namespace CooperadoraISFT94.Views.Common
             }
         }
 
+        /// <summary>
+        /// Windows pinta en blanco la parte visible de los desplegables (DropDownList) sin importar su BackColor,
+        /// así que sus elementos se dibujan a mano con los colores del tema.
+        /// </summary>
+        private static void EstilarDesplegable(ComboBox combo)
+        {
+            combo.BackColor = Superficie;
+            combo.ForeColor = Texto;
+            combo.FlatStyle = FlatStyle.Flat;
+            combo.DrawMode = DrawMode.OwnerDrawFixed;
+            combo.DrawItem -= DibujarElementoDesplegable;
+            combo.DrawItem += DibujarElementoDesplegable;
+        }
+
+        private static void DibujarElementoDesplegable(object? sender, DrawItemEventArgs e)
+        {
+            if (sender is not ComboBox combo)
+                return;
+
+            // Resaltado solo dentro de la lista abierta; la parte cerrada del desplegable queda lisa.
+            var resaltado = (e.State & DrawItemState.Selected) != 0 && (e.State & DrawItemState.ComboBoxEdit) == 0;
+            using (var fondo = new SolidBrush(resaltado ? Seleccion : Superficie))
+                e.Graphics.FillRectangle(fondo, e.Bounds);
+
+            if (e.Index >= 0)
+            {
+                TextRenderer.DrawText(e.Graphics, combo.GetItemText(combo.Items[e.Index]), combo.Font, e.Bounds,
+                    combo.Enabled ? Texto : TextoSecundario,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            }
+        }
+
+        /// <summary>El borde nativo de los GroupBox es blanco: se redibuja con el color de borde del tema.</summary>
+        private static void PintarRecuadro(object? sender, PaintEventArgs e)
+        {
+            if (sender is not GroupBox grupo)
+                return;
+
+            var texto = TextRenderer.MeasureText(e.Graphics, grupo.Text, grupo.Font);
+            var arriba = texto.Height / 2;
+
+            e.Graphics.Clear(grupo.BackColor);
+            using (var borde = new Pen(Borde))
+                e.Graphics.DrawRectangle(borde, 0, arriba, grupo.Width - 1, grupo.Height - arriba - 1);
+
+            if (grupo.Text.Length > 0)
+            {
+                var areaTexto = new Rectangle(8, 0, texto.Width, texto.Height);
+                using (var fondo = new SolidBrush(grupo.BackColor))
+                    e.Graphics.FillRectangle(fondo, areaTexto);
+                TextRenderer.DrawText(e.Graphics, grupo.Text, grupo.Font, areaTexto, grupo.ForeColor);
+            }
+        }
+
+        /// <summary>Pide a Windows (10 20H1 en adelante) la barra de título oscura; en versiones viejas no hace nada.</summary>
+        private static void UsarBarraDeTituloOscura(Form form)
+        {
+            void Activar()
+            {
+                var activado = 1;
+                _ = DwmSetWindowAttribute(form.Handle, DwmwaUseImmersiveDarkMode, ref activado, sizeof(int));
+            }
+
+            if (form.IsHandleCreated)
+                Activar();
+            else
+                form.HandleCreated += (_, _) => Activar();
+        }
+
+        private const int DwmwaUseImmersiveDarkMode = 20;
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int atributo, ref int valor, int tamanio);
+
         private static void EstilarBoton(Button boton)
         {
             var secundario = boton.Tag == BotonSecundario;
@@ -120,7 +199,7 @@ namespace CooperadoraISFT94.Views.Common
             boton.FlatAppearance.BorderSize = secundario ? 1 : 0;
             boton.FlatAppearance.BorderColor = Borde;
             boton.FlatAppearance.MouseOverBackColor = secundario ? Seleccion : PrimarioHover;
-            boton.FlatAppearance.MouseDownBackColor = secundario ? Borde : Encabezado;
+            boton.FlatAppearance.MouseDownBackColor = secundario ? Borde : Primario;
 
             void PintarSegunEstado()
             {
