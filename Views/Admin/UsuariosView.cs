@@ -78,6 +78,7 @@ namespace CooperadoraISFT94.Views.Admin
             var btnGuardar = new Button { Text = "Guardar", Location = new Point(15, y + 45), Size = new Size(285, 36) };
             btnGuardar.Click += (_, _) => Guardar();
 
+            Tema.Secundario(_btnNuevo);
             _btnNuevo.Location = new Point(15, y + 90);
             _btnNuevo.Size = new Size(285, 32);
             _btnNuevo.Click += (_, _) => EntrarModoAlta();
@@ -167,7 +168,7 @@ namespace CooperadoraISFT94.Views.Admin
             foreach (DataGridViewRow fila in _grilla.Rows)
             {
                 if (fila.DataBoundItem is UsuarioDto { Activo: false })
-                    fila.DefaultCellStyle.ForeColor = Color.Gray;
+                    fila.DefaultCellStyle.ForeColor = Tema.TextoSecundario;
             }
         }
 

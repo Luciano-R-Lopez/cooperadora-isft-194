@@ -24,6 +24,7 @@ namespace CooperadoraISFT94.Views.Shell
             _usuario = SesionActual.Instancia.Usuario
                 ?? throw new InvalidOperationException("No hay una sesión iniciada.");
             ConstruirInterfaz();
+            Tema.Aplicar(this);
 
             // Si el usuario edita sus propios datos, la barra superior los refleja sin volver a iniciar sesión.
             SesionActual.Instancia.UsuarioActualizado += MostrarUsuario;
@@ -36,18 +37,21 @@ namespace CooperadoraISFT94.Views.Shell
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(1000, 650);
             MinimumSize = new Size(800, 500);
+            WindowState = FormWindowState.Maximized;
 
-            var barra = new Panel { Dock = DockStyle.Top, Height = 45 };
+            var barra = Tema.ConColoresPropios(new Panel { Dock = DockStyle.Top, Height = 45, BackColor = Tema.Encabezado });
+            Tema.ConColoresPropios(_lblUsuario);
+            _lblUsuario.ForeColor = Tema.EncabezadoTexto;
 
             MostrarUsuario(_usuario);
 
-            var btnCerrarSesion = new Button
+            var btnCerrarSesion = Tema.Secundario(new Button
             {
                 Text = "Cerrar sesión",
                 Size = new Size(120, 30),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 Location = new Point(barra.Width - 132, 7)
-            };
+            });
             btnCerrarSesion.Click += (_, _) => CerrarSesion();
 
             barra.Controls.Add(_lblUsuario);

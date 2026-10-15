@@ -11,12 +11,13 @@ namespace CooperadoraISFT94.Views.Common
             ForeColor = Color.White;
             Font = new Font(Font.FontFamily, 11f, FontStyle.Bold);
             Mostrar(false);
+            Tema.ConColoresPropios(this);
         }
 
         public void Mostrar(bool abierta)
         {
             Text = abierta ? "CAJA ABIERTA" : "CAJA CERRADA";
-            BackColor = abierta ? Color.SeaGreen : Color.Firebrick;
+            BackColor = abierta ? Tema.Exito : Tema.Peligro;
         }
     }
 }

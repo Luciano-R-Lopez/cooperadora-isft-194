@@ -58,6 +58,8 @@ Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
   para que ningún socio quede a cargo de alguien que dejó de ser responsable.
 - **Auditoría:** cada servicio llama a `IAuditoriaService.Registrar` al dar de alta / modificar / dar de baja
   (desactivar un usuario = `Baja`). Solo la ve el administrador.
+- **Tema visual:** `Views/Common/Tema.cs` tiene la paleta y estila los controles; cada ventana llama a `Tema.Aplicar(this)`.
+  Los colores van siempre por `Tema` (nada de `Color.X` sueltos). El login y la ventana principal abren maximizados.
 - **Módulos por rol:** `Views/Shell/ModulosPorRol.cs`. Sumar un módulo es agregar una línea ahí.
 - **Permisos:** Operador = socios, cuotas e ingresos (donación/subsidio); Contador = caja, egresos y consulta de movimientos; Administrador = usuarios y auditoría.
 

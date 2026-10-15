@@ -38,7 +38,7 @@ namespace CooperadoraISFT94.Views.Common
                 RowHeadersVisible = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                BackgroundColor = SystemColors.Window
+                BackgroundColor = Tema.Superficie
             };
 
         public static void AgregarColumna(DataGridView grilla, string titulo, string propiedad, string? formato = null)

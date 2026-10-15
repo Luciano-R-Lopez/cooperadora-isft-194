@@ -97,7 +97,7 @@ namespace CooperadoraISFT94.Views.Operador
             _txtBuscar.TextChanged += (_, _) => CargarSocios();
             barraBusqueda.Controls.Add(Ui.Etiqueta("Buscar por DNI o nombre:", 5, 12));
             barraBusqueda.Controls.Add(_txtBuscar);
-            _txtBuscar.Location = new Point(170, 8);
+            _txtBuscar.Location = new Point(185, 8);
 
             var barraAcciones = new Panel { Dock = DockStyle.Bottom, Height = 45 };
             _btnVerCuotas.Text = "Ver estado de cuotas";

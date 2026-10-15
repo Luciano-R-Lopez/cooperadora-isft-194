@@ -20,6 +20,7 @@ namespace CooperadoraISFT94.Views.Operador
             _socioId = socioId;
             _montoSugerido = montoSugerido;
             ConstruirInterfaz();
+            Tema.Aplicar(this);
             ProponerMonto();
         }
 
@@ -55,13 +56,13 @@ namespace CooperadoraISFT94.Views.Operador
             var btnGenerar = new Button { Text = "Generar", Location = new Point(130, 135), Size = new Size(80, 30) };
             btnGenerar.Click += (_, _) => Confirmar();
 
-            var btnCancelar = new Button
+            var btnCancelar = Tema.Secundario(new Button
             {
                 Text = "Cancelar",
                 Location = new Point(220, 135),
                 Size = new Size(80, 30),
                 DialogResult = DialogResult.Cancel
-            };
+            });
 
             AcceptButton = btnGenerar;
             CancelButton = btnCancelar;

@@ -187,12 +187,12 @@ namespace CooperadoraISFT94.Views.Contador
             if (resumen.Diferencia is decimal diferencia)
             {
                 _lblDiferencia.Text = diferencia.ToString("C2");
-                _lblDiferencia.ForeColor = diferencia == 0 ? SystemColors.ControlText : Color.Firebrick;
+                _lblDiferencia.ForeColor = diferencia == 0 ? Tema.Texto : Tema.Peligro;
             }
             else
             {
                 _lblDiferencia.Text = "-";
-                _lblDiferencia.ForeColor = SystemColors.ControlText;
+                _lblDiferencia.ForeColor = Tema.Texto;
             }
         }
 
@@ -201,7 +201,7 @@ namespace CooperadoraISFT94.Views.Contador
             foreach (var etiqueta in new[] { _lblSaldoInicial, _lblIngresos, _lblEgresos, _lblEsperado, _lblDiferencia })
             {
                 etiqueta.Text = "-";
-                etiqueta.ForeColor = SystemColors.ControlText;
+                etiqueta.ForeColor = Tema.Texto;
             }
 
             _grillaMedios.DataSource = new List<TotalMedioPagoDto>();

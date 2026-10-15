@@ -169,8 +169,8 @@ namespace CooperadoraISFT94.Views.Contador
                 if (fila.DataBoundItem is not MovimientoDto movimiento) continue;
 
                 fila.DefaultCellStyle.BackColor = movimiento.Tipo == TipoMovimiento.Ingreso
-                    ? Color.Honeydew
-                    : Color.MistyRose;
+                    ? Tema.ExitoSuave
+                    : Tema.PeligroSuave;
             }
         }
     }

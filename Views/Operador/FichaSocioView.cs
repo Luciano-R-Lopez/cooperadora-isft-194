@@ -62,7 +62,7 @@ namespace CooperadoraISFT94.Views.Operador
         {
             var barra = new Panel { Dock = DockStyle.Bottom, Height = 50 };
 
-            var btnVolver = new Button { Text = "← Volver", Location = new Point(10, 9), Size = new Size(100, 32) };
+            var btnVolver = Tema.Secundario(new Button { Text = "← Volver", Location = new Point(10, 9), Size = new Size(100, 32) });
             btnVolver.Click += (_, _) => VolverSolicitado?.Invoke();
 
             var btnGenerar = new Button { Text = "Generar cuota", Location = new Point(130, 9), Size = new Size(130, 32) };
@@ -146,8 +146,8 @@ namespace CooperadoraISFT94.Views.Operador
                 if (fila.DataBoundItem is not CuotaDto cuota) continue;
 
                 fila.DefaultCellStyle.BackColor = cuota.Estado == EstadoCuota.Pagada
-                    ? Color.Honeydew
-                    : SystemColors.Window;
+                    ? Tema.ExitoSuave
+                    : Tema.Superficie;
             }
         }
 

@@ -19,6 +19,7 @@ namespace CooperadoraISFT94.Views.Operador
             _cuota = cuota;
             _medios = medios;
             ConstruirInterfaz();
+            Tema.Aplicar(this);
         }
 
         private void ConstruirInterfaz()
@@ -50,13 +51,13 @@ namespace CooperadoraISFT94.Views.Operador
                 DialogResult = DialogResult.OK
             };
 
-            var btnCancelar = new Button
+            var btnCancelar = Tema.Secundario(new Button
             {
                 Text = "Cancelar",
                 Location = new Point(240, 140),
                 Size = new Size(80, 32),
                 DialogResult = DialogResult.Cancel
-            };
+            });
 
             AcceptButton = btnRegistrar;
             CancelButton = btnCancelar;
