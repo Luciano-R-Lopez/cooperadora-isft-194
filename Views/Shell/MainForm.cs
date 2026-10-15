@@ -54,7 +54,21 @@ namespace CooperadoraISFT94.Views.Shell
             });
             btnCerrarSesion.Click += (_, _) => CerrarSesion();
 
+            var btnMiPassword = Tema.Secundario(new Button
+            {
+                Text = "Mi contraseña",
+                Size = new Size(120, 30),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = new Point(barra.Width - 262, 7)
+            });
+            btnMiPassword.Click += (_, _) =>
+            {
+                using var dialogo = new CambiarPasswordDialog();
+                dialogo.ShowDialog(this);
+            };
+
             barra.Controls.Add(_lblUsuario);
+            barra.Controls.Add(btnMiPassword);
             barra.Controls.Add(btnCerrarSesion);
 
             var tabs = new Pestanias { Dock = DockStyle.Fill };

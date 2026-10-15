@@ -18,6 +18,7 @@ namespace CooperadoraISFT94.Views.Contador
         private readonly ComboBox _cmbMedio = new();
         private readonly TextBox _txtBuscar = Ui.Campo(740, 18, 200);
         private readonly DataGridView _grilla = Ui.CrearGrilla();
+        private readonly Button _btnAnular = new();
 
         private bool _cargando;
 
@@ -80,10 +81,27 @@ namespace CooperadoraISFT94.Views.Contador
             Ui.AgregarColumna(_grilla, "Medio de pago", nameof(MovimientoDto.MedioPago));
             Ui.AgregarColumna(_grilla, "Monto", nameof(MovimientoDto.MontoConSigno), "C2");
             Ui.AgregarColumna(_grilla, "Usuario", nameof(MovimientoDto.Usuario));
+            Ui.AgregarColumna(_grilla, "Estado", nameof(MovimientoDto.EstadoTexto));
             _grilla.DataBindingComplete += (_, _) => PintarFilas();
+            _grilla.SelectionChanged += (_, _) => ActualizarBotones();
+
+            var acciones = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 48, Padding = new Padding(0, 6, 0, 0) };
+
+            _btnAnular.Text = "Anular movimiento";
+            _btnAnular.Size = new Size(170, 32);
+            _btnAnular.Click += (_, _) => AnularSeleccionado();
+
+            var btnImprimir = Tema.Secundario(new Button { Text = "Imprimir resumen de caja", Size = new Size(200, 32) });
+            btnImprimir.Click += (_, _) => ImprimirResumen();
+
+            var btnExportar = Tema.Secundario(new Button { Text = "Exportar a CSV", Size = new Size(140, 32) });
+            btnExportar.Click += (_, _) => ExportarCsv.Grilla(_grilla, "Movimientos");
+
+            acciones.Controls.AddRange(new Control[] { _btnAnular, btnImprimir, btnExportar });
 
             // Orden de agregado: primero el que llena, después la barra superior.
             Controls.Add(_grilla);
+            Controls.Add(acciones);
             Controls.Add(barra);
         }
 
@@ -117,7 +135,7 @@ namespace CooperadoraISFT94.Views.Contador
         private void CargarMedios(int? medioId)
         {
             var opciones = new List<Opcion<int?>> { new("Todos", null) };
-            opciones.AddRange(_catalogos.ObtenerMediosPago().Select(m => new Opcion<int?>(m.Nombre, m.Id)));
+            opciones.AddRange(_catalogos.ObtenerMediosPago(incluirInactivos: true).Select(m => new Opcion<int?>(m.Nombre, m.Id)));
 
             _cmbMedio.DataSource = opciones;
             _cmbMedio.SelectedIndex = Math.Max(0, opciones.FindIndex(o => o.Valor == medioId));
@@ -146,6 +164,7 @@ namespace CooperadoraISFT94.Views.Contador
             if (_cmbCaja.SelectedItem is not CajaDto caja)
             {
                 _grilla.DataSource = new List<MovimientoDto>();
+                ActualizarBotones();
                 return;
             }
 
@@ -160,6 +179,8 @@ namespace CooperadoraISFT94.Views.Contador
             {
                 Ui.Error(ex.Message);
             }
+
+            ActualizarBotones();
         }
 
         private void PintarFilas()
@@ -168,9 +189,69 @@ namespace CooperadoraISFT94.Views.Contador
             {
                 if (fila.DataBoundItem is not MovimientoDto movimiento) continue;
 
+                // Los anulados quedan a la vista pero apagados: ya no cuentan en la caja.
+                if (movimiento.Anulado)
+                {
+                    fila.DefaultCellStyle.BackColor = Tema.Superficie;
+                    fila.DefaultCellStyle.ForeColor = Tema.TextoSecundario;
+                    continue;
+                }
+
                 fila.DefaultCellStyle.BackColor = movimiento.Tipo == TipoMovimiento.Ingreso
                     ? Tema.ExitoSuave
                     : Tema.PeligroSuave;
+            }
+        }
+
+        private MovimientoDto? MovimientoSeleccionado() => _grilla.CurrentRow?.DataBoundItem as MovimientoDto;
+
+        /// <summary>Solo se anulan movimientos vigentes de la caja abierta.</summary>
+        private void ActualizarBotones() =>
+            _btnAnular.Enabled = _cmbCaja.SelectedItem is CajaDto { Abierta: true }
+                                 && MovimientoSeleccionado() is { Anulado: false };
+
+        private void AnularSeleccionado()
+        {
+            if (MovimientoSeleccionado() is not MovimientoDto movimiento)
+                return;
+
+            var motivo = DialogoTexto.Pedir(this, "Anular movimiento",
+                $"Se va a anular {movimiento.Tipo.ToString().ToLowerInvariant()} de {movimiento.Monto:C2} ({movimiento.Clasificacion}). Motivo:",
+                "Anular");
+            if (motivo is null)
+                return;
+
+            try
+            {
+                _controller.Anular(movimiento.Id, motivo);
+            }
+            catch (NegocioException ex)
+            {
+                Ui.Error(ex.Message);
+                return;
+            }
+
+            Recargar();
+            Ui.Info("Movimiento anulado. Se revirtió su efecto en la caja.");
+        }
+
+        private void ImprimirResumen()
+        {
+            if (_cmbCaja.SelectedItem is not CajaDto caja)
+            {
+                Ui.Error("Elegí una caja.");
+                return;
+            }
+
+            try
+            {
+                var resumen = _controller.ObtenerResumen(caja.Id);
+                var movimientos = _controller.Obtener(new MovimientoFiltroDto(caja.Id, null, null, null));
+                Reportes.ImprimirResumenCaja(resumen, movimientos);
+            }
+            catch (NegocioException ex)
+            {
+                Ui.Error(ex.Message);
             }
         }
     }

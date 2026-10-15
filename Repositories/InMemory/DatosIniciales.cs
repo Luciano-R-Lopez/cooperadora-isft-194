@@ -60,6 +60,9 @@ namespace CooperadoraISFT94.Repositories.InMemory
             cuotas.Agregar(new Cuota(lucia, 5000m, 2025));
             cuotas.Agregar(new Cuota(lucia, 5000m, 2026));
             cuotas.Agregar(new Cuota(martin, 5000m, 2026));
+
+            // Valor de la cuota del año: se propone al generar cuotas nuevas.
+            ValorCuotaRepository.Instancia.Agregar(new ValorCuota(2026, 5000m));
         }
 
         private static Usuario CrearUsuario(string nombreUsuario, string nombre, string apellido, string password, Rol rol) =>

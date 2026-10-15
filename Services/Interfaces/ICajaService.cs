@@ -14,5 +14,8 @@ namespace CooperadoraISFT94.Services.Interfaces
 
         /// <summary>Resumen de la caja abierta. Si se informa el monto contado, calcula la diferencia.</summary>
         ResumenCajaDto ObtenerResumenActivo(decimal? montoDeclarado);
+
+        /// <summary>Resumen de cualquier caja; para una cerrada, la diferencia es contra lo que se contó al cerrar.</summary>
+        ResumenCajaDto ObtenerResumen(int cajaId);
     }
 }

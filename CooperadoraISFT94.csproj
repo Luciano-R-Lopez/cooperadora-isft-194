@@ -8,6 +8,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- Los tests construyen servicios y repositorios con sus constructores internos. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="CooperadoraISFT94.Tests" />
+  </ItemGroup>
+
   <!-- Los tests son un proyecto aparte: no se compilan dentro de la app. -->
   <ItemGroup>
     <Compile Remove="Tests/**" />

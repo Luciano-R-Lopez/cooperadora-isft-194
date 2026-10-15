@@ -8,13 +8,13 @@ namespace CooperadoraISFT94.Repositories.InMemory
         private static readonly Lazy<SocioRepository> _instancia = new(() => new SocioRepository());
         public static SocioRepository Instancia => _instancia.Value;
 
-        private SocioRepository() : base("El socio seleccionado no existe.") { }
+        internal SocioRepository() : base("El socio seleccionado no existe.") { }
 
         public Socio? ObtenerPorDni(string dni) =>
             Items.FirstOrDefault(s => s.Dni == dni);
 
         public IReadOnlyList<Socio> ObtenerResponsables() =>
-            Items.Where(s => s.EsResponsable)
+            Items.Where(s => s.EsResponsable && s.Activo)
                  .OrderBy(s => s.Apellido)
                  .ThenBy(s => s.Nombre)
                  .ToList();

@@ -33,5 +33,17 @@ namespace CooperadoraISFT94.Controllers
             ExigirRol(Rol.Contador);
             return _movimientos.Obtener(filtro);
         }
+
+        public MovimientoDto Anular(int movimientoId, string motivo)
+        {
+            ExigirRol(Rol.Contador);
+            return _movimientos.Anular(movimientoId, motivo, UsuarioActualId);
+        }
+
+        public ResumenCajaDto ObtenerResumen(int cajaId)
+        {
+            ExigirRol(Rol.Contador);
+            return _cajas.ObtenerResumen(cajaId);
+        }
     }
 }

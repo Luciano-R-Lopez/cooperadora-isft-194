@@ -48,7 +48,7 @@ namespace CooperadoraISFT94.Views.Contador
             _btnRegistrar.Size = new Size(380, 38);
             _btnRegistrar.Click += (_, _) => Registrar();
 
-            var formulario = new Panel { Dock = DockStyle.Fill };
+            var formulario = new Panel { Size = new Size(420, 250) };
             formulario.Controls.AddRange(new Control[]
             {
                 Ui.Etiqueta("Monto", 20, 10), _numMonto,
@@ -58,7 +58,7 @@ namespace CooperadoraISFT94.Views.Contador
             });
 
             // Orden de agregado: primero el que llena, después la franja superior.
-            Controls.Add(formulario);
+            Controls.Add(Ui.Centrado(formulario));
             Controls.Add(_estado);
         }
 

@@ -21,7 +21,7 @@ namespace CooperadoraISFT94.Services
         private readonly IUsuarioRepository _usuarios;
         private readonly IAuditoriaService _auditoria;
 
-        private UsuarioService(IUsuarioRepository usuarios, IAuditoriaService auditoria)
+        internal UsuarioService(IUsuarioRepository usuarios, IAuditoriaService auditoria)
         {
             _usuarios = usuarios;
             _auditoria = auditoria;
@@ -48,7 +48,8 @@ namespace CooperadoraISFT94.Services
                 throw new ReglaNegocioException("Ya existe un usuario con ese nombre de usuario.");
 
             _usuarios.Agregar(usuario);
-            _auditoria.Registrar(actorId, AccionAuditoria.Alta, nameof(Usuario), usuario.Id);
+            _auditoria.Registrar(actorId, AccionAuditoria.Alta, nameof(Usuario), usuario.Id,
+                                 $"{usuario.NombreUsuario} ({usuario.Rol})");
 
             return UsuarioMapper.ADto(usuario);
         }
@@ -67,13 +68,23 @@ namespace CooperadoraISFT94.Services
             if (dto.Id == actorId && (!dto.Activo || usuario.Rol != dto.Rol))
                 throw new ReglaNegocioException(MensajeAutoModificacion);
 
+            var anterior = UsuarioMapper.ADto(usuario);
+
             // Valida todos los datos antes de tocar al usuario: si alguno es inválido, queda sin cambios.
             usuario.ActualizarDatos(dto.Nombre, dto.Apellido, dto.Activo, dto.Rol);
             if (cambiaPassword)
                 usuario.CambiarPasswordHash(PasswordHasher.Hashear(dto.NuevaPassword!));
 
             _usuarios.Actualizar(usuario);
-            _auditoria.Registrar(actorId, AccionAuditoria.Modificacion, nameof(Usuario), usuario.Id);
+
+            var nuevo = UsuarioMapper.ADto(usuario);
+            var cambios = new DescripcionCambios()
+                .Campo("Nombre", anterior.Nombre, nuevo.Nombre)
+                .Campo("Apellido", anterior.Apellido, nuevo.Apellido)
+                .Campo("Activo", anterior.Activo, nuevo.Activo)
+                .Campo("Rol", anterior.Rol, nuevo.Rol)
+                .Oculto("Contraseña", cambiaPassword);
+            _auditoria.Registrar(actorId, AccionAuditoria.Modificacion, nameof(Usuario), usuario.Id, cambios.ToString());
 
             return UsuarioMapper.ADto(usuario);
         }
@@ -94,9 +105,29 @@ namespace CooperadoraISFT94.Services
 
             // Desactivar es la baja lógica del usuario; reactivarlo es una modificación.
             var accion = activo ? AccionAuditoria.Modificacion : AccionAuditoria.Baja;
-            _auditoria.Registrar(actorId, accion, nameof(Usuario), usuario.Id);
+            _auditoria.Registrar(actorId, accion, nameof(Usuario), usuario.Id, activo ? "Activado" : "Desactivado");
 
             return UsuarioMapper.ADto(usuario);
+        }
+
+        public void CambiarPasswordPropia(int usuarioId, CambioPasswordDto dto)
+        {
+            ArgumentNullException.ThrowIfNull(dto);
+
+            var usuario = _usuarios.ObtenerExistente(usuarioId);
+
+            if (!PasswordHasher.Verificar(dto.Actual ?? string.Empty, usuario.PasswordHash))
+                throw new ReglaNegocioException("La contraseña actual no es correcta.");
+            ValidarPassword(dto.Nueva);
+            if (dto.Nueva != dto.Confirmacion)
+                throw new ReglaNegocioException("La nueva contraseña y su confirmación no coinciden.");
+            if (dto.Nueva == dto.Actual)
+                throw new ReglaNegocioException("La nueva contraseña tiene que ser distinta de la actual.");
+
+            usuario.CambiarPasswordHash(PasswordHasher.Hashear(dto.Nueva));
+            _usuarios.Actualizar(usuario);
+            _auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(Usuario), usuario.Id,
+                                 "Cambió su propia contraseña");
         }
 
         private static void ValidarPassword(string? password)

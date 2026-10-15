@@ -14,5 +14,11 @@ namespace CooperadoraISFT94.Services.Interfaces
         /// </summary>
         /// <exception cref="Common.Exceptions.ReglaNegocioException">No hay una caja abierta.</exception>
         void Registrar(Movimiento movimiento);
+
+        /// <summary>
+        /// Revierte el efecto del movimiento en la caja abierta, lo marca como anulado y lo audita.
+        /// Si no se puede (caja cerrada, saldo insuficiente...) no se modifica nada.
+        /// </summary>
+        void Anular(Movimiento movimiento, Usuario usuario, string motivo);
     }
 }

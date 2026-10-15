@@ -17,7 +17,7 @@ namespace CooperadoraISFT94.Services
         private readonly ISocioRepository _socios;
         private readonly IAuditoriaService _auditoria;
 
-        private SocioService(ISocioRepository socios, IAuditoriaService auditoria)
+        internal SocioService(ISocioRepository socios, IAuditoriaService auditoria)
         {
             _socios = socios;
             _auditoria = auditoria;
@@ -29,16 +29,61 @@ namespace CooperadoraISFT94.Services
 
             // El propio Socio valida y normaliza sus datos; acá solo se controla lo que depende de otros socios.
             var socio = new Socio(dto.Nombre, dto.Apellido, dto.Dni, dto.Telefono, dto.Email, dto.Categoria);
-
-            if (_socios.ObtenerPorDni(socio.Dni) is not null)
-                throw new ReglaNegocioException("Ya existe un socio registrado con ese DNI.");
+            ExigirDniLibre(socio.Dni, socioId: null);
 
             // El propio Socio valida que el elegido sea un responsable.
             if (dto.ResponsableId is int responsableId)
                 socio.AsignarResponsable(_socios.ObtenerExistente(responsableId));
 
             _socios.Agregar(socio);
-            _auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(Socio), socio.Id);
+            _auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(Socio), socio.Id, socio.ObtenerDescripcion());
+
+            return SocioMapper.ADto(socio);
+        }
+
+        public SocioDto Editar(SocioEditarDto dto, int usuarioId)
+        {
+            ArgumentNullException.ThrowIfNull(dto);
+
+            var socio = _socios.ObtenerExistente(dto.Id);
+            ExigirDniLibre((dto.Dni ?? string.Empty).Trim(), socio.Id);
+            var responsable = dto.ResponsableId is int responsableId ? _socios.ObtenerExistente(responsableId) : null;
+
+            var cambios = new DescripcionCambios();
+            var anterior = SocioMapper.ADto(socio);
+
+            // El Socio valida todo junto (incluida la categoría frente a sus socios a cargo) antes de modificar.
+            socio.ActualizarDatos(dto.Nombre, dto.Apellido, dto.Dni ?? string.Empty, dto.Telefono, dto.Email,
+                                  dto.Categoria, responsable, TieneSociosACargo(socio));
+            _socios.Actualizar(socio);
+
+            var nuevo = SocioMapper.ADto(socio);
+            cambios.Campo("Nombre", anterior.Nombre, nuevo.Nombre)
+                   .Campo("Apellido", anterior.Apellido, nuevo.Apellido)
+                   .Campo("DNI", anterior.Dni, nuevo.Dni)
+                   .Campo("Teléfono", anterior.Telefono, nuevo.Telefono)
+                   .Campo("Email", anterior.Email, nuevo.Email)
+                   .Campo("Categoría", anterior.Categoria, nuevo.Categoria)
+                   .Campo("Responsable", anterior.Responsable, nuevo.Responsable);
+            _auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(Socio), socio.Id, cambios.ToString());
+
+            return nuevo;
+        }
+
+        public SocioDto CambiarEstado(int socioId, bool activo, int usuarioId)
+        {
+            var socio = _socios.ObtenerExistente(socioId);
+
+            if (activo)
+                socio.Reactivar();
+            else
+                socio.DarDeBaja(TieneSociosACargo(socio));
+
+            _socios.Actualizar(socio);
+
+            // Dar de baja es la baja lógica del socio; reactivarlo es una modificación.
+            var accion = activo ? AccionAuditoria.Modificacion : AccionAuditoria.Baja;
+            _auditoria.Registrar(usuarioId, accion, nameof(Socio), socio.Id, activo ? "Reactivado" : "Dado de baja");
 
             return SocioMapper.ADto(socio);
         }
@@ -56,6 +101,16 @@ namespace CooperadoraISFT94.Services
         {
             var responsable = _socios.ObtenerExistente(responsableId);
             return _socios.ObtenerACargo(responsable).Select(SocioMapper.ADto).ToList();
+        }
+
+        private bool TieneSociosACargo(Socio socio) => _socios.ObtenerACargo(socio).Count > 0;
+
+        /// <summary>El DNI no puede repetirse entre socios (el propio socio, al editarlo, no cuenta).</summary>
+        private void ExigirDniLibre(string dni, int? socioId)
+        {
+            var existente = _socios.ObtenerPorDni(dni);
+            if (existente is not null && existente.Id != socioId)
+                throw new ReglaNegocioException("Ya existe un socio registrado con ese DNI.");
         }
     }
 }

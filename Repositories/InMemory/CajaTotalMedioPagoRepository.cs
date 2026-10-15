@@ -8,7 +8,7 @@ namespace CooperadoraISFT94.Repositories.InMemory
         private static readonly Lazy<CajaTotalMedioPagoRepository> _instancia = new(() => new CajaTotalMedioPagoRepository());
         public static CajaTotalMedioPagoRepository Instancia => _instancia.Value;
 
-        private CajaTotalMedioPagoRepository() : base("El total por medio de pago seleccionado no existe.") { }
+        internal CajaTotalMedioPagoRepository() : base("El total por medio de pago seleccionado no existe.") { }
 
         public IReadOnlyList<CajaTotalMedioPago> ObtenerPorCaja(Caja caja) =>
             Items.Where(t => ReferenceEquals(t.Caja, caja)).ToList();

@@ -1,4 +1,5 @@
 using System.Globalization;
+using CooperadoraISFT94.Common;
 using CooperadoraISFT94.Repositories.InMemory;
 using CooperadoraISFT94.Views.Auth;
 using CooperadoraISFT94.Views.Common;
@@ -24,7 +25,17 @@ namespace CooperadoraISFT94
             // Los errores de negocio (NegocioException) los atrapa cada vista; cualquier otra excepción
             // es un error de programación y se informa acá en lugar de cerrar la aplicación sin aviso.
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-            Application.ThreadException += (_, e) => Ui.ErrorInesperado(e.Exception);
+            Application.ThreadException += (_, e) =>
+            {
+                RegistroErrores.Registrar(e.Exception);
+                Ui.ErrorInesperado(e.Exception);
+            };
+            // Errores fuera del hilo de la interfaz: la aplicación se cierra, pero queda registrado qué pasó.
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            {
+                if (e.ExceptionObject is Exception ex)
+                    RegistroErrores.Registrar(ex);
+            };
 
             // Datos de prueba en memoria (se elimina al conectar MySQL).
             DatosIniciales.Cargar();

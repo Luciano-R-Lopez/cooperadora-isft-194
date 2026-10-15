@@ -22,5 +22,11 @@ namespace CooperadoraISFT94.Models
             caja.Debitar(Monto);
             totalMedioPago.Debitar(Monto);
         }
+
+        protected override void Revertir(Caja caja, CajaTotalMedioPago totalMedioPago)
+        {
+            caja.Acreditar(Monto);
+            totalMedioPago.Acreditar(Monto);
+        }
     }
 }

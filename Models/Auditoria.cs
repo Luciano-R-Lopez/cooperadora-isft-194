@@ -8,8 +8,10 @@ namespace CooperadoraISFT94.Models
     public class Auditoria : Entidad
     {
         public const int LargoMaximoEntidad = 50;
+        public const int LargoMaximoDetalle = 500;
 
-        public Auditoria(Usuario usuario, AccionAuditoria accion, string entidadAfectada, int entidadId, DateTime fecha)
+        public Auditoria(Usuario usuario, AccionAuditoria accion, string entidadAfectada, int entidadId, DateTime fecha,
+                         string? detalle = null)
         {
             Usuario = usuario ?? throw new ReglaNegocioException("La auditoría debe registrar al usuario que realizó la acción.");
 
@@ -22,6 +24,10 @@ namespace CooperadoraISFT94.Models
             EntidadAfectada = Validaciones.ExigirTexto(entidadAfectada, "nombre de la entidad auditada", LargoMaximoEntidad);
             EntidadId = entidadId;
             Fecha = fecha;
+
+            // El detalle es informativo: si es muy largo se recorta en lugar de impedir la operación auditada.
+            var texto = (detalle ?? string.Empty).Trim();
+            Detalle = texto.Length > LargoMaximoDetalle ? texto[..LargoMaximoDetalle] : texto;
         }
 
         public Usuario Usuario { get; }
@@ -33,5 +39,8 @@ namespace CooperadoraISFT94.Models
         public int EntidadId { get; }
 
         public DateTime Fecha { get; }
+
+        /// <summary>Qué cambió, en texto (por ejemplo "Rol: Operador → Contador"); vacío si no hace falta.</summary>
+        public string Detalle { get; }
     }
 }

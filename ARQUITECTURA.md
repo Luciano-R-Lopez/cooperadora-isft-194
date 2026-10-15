@@ -26,53 +26,74 @@ Misma lógica que el proyecto Eventos: cada capa hace solo su parte.
 
 ```
 Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
-         │           └─ Socio    (Categoria, Responsable?) ──► Socio (Responsable)
-         ├─ Movimiento (abstracta: Usuario, Fecha, Monto, MedioPago, Caja, AfectarCaja())
+         │           └─ Socio    (Categoria, Activo, Responsable?) ──► Socio (Responsable)
+         ├─ Movimiento (abstracta: Usuario, Fecha, Monto, MedioPago, Caja, Anulado, AfectarCaja(), Anular())
          │     ├─ Ingreso (CategoriaIngreso)
          │     └─ Egreso  (MotivoEgreso)
-         ├─ Cuota (Socio, Monto, Anio, Estado) ◄── DetalleIngresoCuota ──► Ingreso
+         ├─ Cuota (Socio, Monto, Anio, Estado) ◄── DetalleIngresoCuota (PagadaPor?) ──► Ingreso
+         ├─ ValorCuota (Anio, Monto)
          ├─ Caja (MontoInicial, MontoTotal, Estado) ◄── CajaTotalMedioPago ──► MedioPago
-         ├─ MedioPago, MotivoEgreso   (catálogos: son entidades, no enums)
-         └─ Auditoria (Usuario, Accion, EntidadAfectada, EntidadId, Fecha)
+         ├─ ItemCatalogo (Nombre, Activo) ─┬─ MedioPago
+         │                                 └─ MotivoEgreso
+         └─ Auditoria (Usuario, Accion, EntidadAfectada, EntidadId, Fecha, Detalle)
 ```
 
 - **Polimorfismo:** `Movimiento.AfectarCaja` hace los controles comunes y delega en `Aplicar`, que implementa cada subclase
-  (el ingreso acredita, el egreso debita).
+  (el ingreso acredita, el egreso debita). `Anular` hace lo mismo con `Revertir` (el ingreso anulado debita, el egreso acredita).
   Nadie pregunta "¿es ingreso o egreso?" para operar la caja; `Tipo` y `Clasificacion` también son polimórficos.
 - **Un solo repositorio de movimientos** (`IMovimientoRepository`): ingresos y egresos comparten id y listado.
-- **`IMovimientoRegistrador`** es el único lugar que aplica un movimiento a la caja abierta, guarda y audita.
-  Lo usan `IngresoService`, `EgresoService` y `CuotaService` (cobro de cuota).
+- **`IMovimientoRegistrador`** es el único lugar que aplica (o anula) un movimiento en la caja, guarda y audita.
+  Lo usan `IngresoService`, `EgresoService`, `CuotaService` (cobro de cuota) y `MovimientoService` (anulación).
 - **Cada movimiento guarda la caja a la que se aplicó** (`Movimiento.Caja`, la asigna `AfectarCaja`, una sola vez).
   Los listados y el resumen de una caja filtran por esa referencia, no por fechas. Su efecto queda en
   `Caja.MontoTotal` y `CajaTotalMedioPago`.
+- **Anular movimientos:** solo los de la caja abierta (una caja cerrada ya se contó), con motivo obligatorio y una sola vez.
+  El movimiento no se borra: queda marcado como anulado, fuera de los totales del resumen. Si era el cobro de cuotas,
+  esas cuotas vuelven a `Pendiente` (`Cuota.RevertirPago`). Lo hace el Contador desde Movimientos.
 - **`Caja.MontoTotal`**: con la caja abierta es el monto esperado; `CerrarCaja(fecha, montoTotal)` lo reemplaza por el contado.
   El esperado de una caja cerrada se recalcula como `MontoInicial + Σ CajaTotalMedioPago`.
-- **Saldo insuficiente:** un egreso no puede dejar la caja en negativo (`Caja.Debitar`). El saldo de un medio de pago
-  sí puede ser negativo (por ejemplo, un egreso por transferencia sin ingresos por transferencia).
-- **Cobrar una cuota** crea un `Ingreso(CuotaSocial)`, su `DetalleIngresoCuota` y pasa la cuota a `Pagada`.
-  Los ingresos de cuota social no se pueden cargar a mano.
-- **Monto de la cuota:** se carga al generarla; el diálogo propone el de la última cuota generada para ese año
-  (`ICuotaService.ObtenerMontoSugerido`) y el operador lo puede cambiar.
-- **Socio responsable:** un socio puede tener (opcionalmente) un responsable, que debe ser otro socio de categoría
-  `Responsable`; un `Responsable` no puede tener responsable. La categoría se fija al inscribir y no cambia,
-  para que ningún socio quede a cargo de alguien que dejó de ser responsable.
-- **Auditoría:** cada servicio llama a `IAuditoriaService.Registrar` al dar de alta / modificar / dar de baja
-  (desactivar un usuario = `Baja`). Solo la ve el administrador.
+- **Saldo insuficiente:** un egreso (o anular un ingreso) no puede dejar la caja en negativo (`Caja.Debitar`).
+  El saldo de un medio de pago sí puede ser negativo (por ejemplo, un egreso por transferencia sin ingresos por transferencia).
+- **Cobrar una cuota** crea un `Ingreso(CuotaSocial)`, su `DetalleIngresoCuota` y pasa la cuota a `Pagada`; devuelve
+  los datos del recibo (el número es el id del ingreso). Los ingresos de cuota social no se pueden cargar a mano.
+  **No hay recargo** por pagar fuera de término: la cuota se cobra siempre por su monto.
+- **El responsable paga por un socio a cargo:** desde su ficha elige el socio (si tiene más de uno), la cuota pendiente
+  y el medio. También se puede marcar al cobrar desde la ficha del socio. Queda en `DetalleIngresoCuota.PagadaPor`,
+  que solo acepta al responsable de ese socio.
+- **Valor de la cuota:** `ValorCuota` guarda el valor de cada año. Se propone al generar cuotas (si no hay, el de la
+  última cuota del año) y el operador lo puede cambiar. "Generar cuotas para todos" se la crea a cada socio activo
+  que no la tenga.
+- **Socios:** se editan (validando todo junto) y se dan de baja con baja lógica (`Activo`): conservan cuotas y pagos,
+  no reciben cuotas nuevas y no pueden ser responsables. Un responsable con socios a cargo no puede dejar de serlo
+  ni darse de baja hasta reasignarlos. Un `Responsable` no puede tener responsable.
+- **Catálogos:** medios de pago y motivos de egreso heredan de `ItemCatalogo`. El administrador los agrega, renombra
+  (sin repetir nombres) y desactiva; los inactivos no se ofrecen ni se aceptan en movimientos nuevos.
+- **Auditoría:** cada servicio llama a `IAuditoriaService.Registrar` al dar de alta / modificar / dar de baja, con un
+  detalle de qué cambió (`DescripcionCambios`: "Rol: Operador → Contador"). Solo la ve el administrador, con filtros.
+- **Login:** 5 intentos fallidos seguidos bloquean ese nombre de usuario por 5 minutos (también si no existe, para no
+  revelar qué usuarios hay). Cada usuario puede cambiar su propia contraseña ("Mi contraseña").
+- **Reportes:** `Views/Common/Reportes.cs` imprime el recibo de cuota y el resumen de caja (vista previa de Windows;
+  "Microsoft Print to PDF" para PDF). `ExportarCsv` exporta cualquier grilla tal como se ve (separador `;` para Excel).
+- **Errores inesperados:** se muestran y quedan guardados en `%LOCALAPPDATA%\CooperadoraISFT94\errores.log`
+  (`RegistroErrores`).
 - **Tema visual (oscuro):** `Views/Common/Tema.cs` tiene la paleta y estila los controles; cada ventana llama a `Tema.Aplicar(this)`.
   Los colores van siempre por `Tema` (nada de `Color.X` sueltos). Las pestañas usan `Pestanias` (el `TabControl` nativo
-  no se puede oscurecer). El login y la ventana principal abren maximizados.
+  no se puede oscurecer). El login y la ventana principal abren maximizados; los formularios de tamaño fijo van
+  centrados con `Ui.Centrado`. Los desplegables se llenan con `Ui.Llenar` (no con `DataSource`).
 - **Formato regional:** `Program.cs` fija la cultura `es-AR`, así los montos se ven "$ 5.000,00" sin importar
   la configuración de Windows.
 - **Módulos por rol:** `Views/Shell/ModulosPorRol.cs`. Sumar un módulo es agregar una línea ahí.
-- **Permisos:** Operador = socios, cuotas e ingresos (donación/subsidio); Contador = caja, egresos y consulta de movimientos; Administrador = usuarios y auditoría.
+- **Permisos:** Operador = socios, cuotas (valor, generación, cobro, morosos) e ingresos (donación/subsidio);
+  Contador = caja, egresos, consulta y anulación de movimientos; Administrador = usuarios, catálogos y auditoría.
 
 ### Tests
-`Tests/CooperadoraISFT94.Tests` (xUnit) prueba las reglas del dominio. Se corren con `dotnet test CooperadoraISFT94.slnx`.
-El `.csproj` de la app excluye la carpeta `Tests/` para no compilarla adentro.
+`Tests/CooperadoraISFT94.Tests` (xUnit) prueba las reglas del dominio y los servicios. Se corren con
+`dotnet test CooperadoraISFT94.slnx`. Los servicios y repositorios tienen constructores `internal` (visibles para los
+tests) que reciben sus dependencias y un reloj (`Func<DateTime>`), así cada test arma los suyos con datos propios
+(`Contexto`). El `.csproj` de la app excluye la carpeta `Tests/` para no compilarla adentro.
 
 ### Agregar un medio de pago o motivo de egreso
-Son filas de datos (`MedioPagoRepository` / `MotivoEgresoRepository`), no código: los desplegables los leen
-de `ICatalogoService`. Hoy se cargan en `DatosIniciales`; con MySQL, con un INSERT.
+Desde la pestaña "Catálogos" del administrador. Los datos de ejemplo se cargan en `DatosIniciales`.
 
 ### Diferencias deliberadas con el UML
 | UML | Código | Motivo |
@@ -84,3 +105,4 @@ de `ICatalogoService`. Hoy se cargan en `DatosIniciales`; con MySQL, con un INSE
 | — | `Socio.Responsable` | Relación opcional entre socios pedida después del UML. |
 | — | Clase base `Persona` | `Usuario` y `Socio` compartían nombre/apellido y su validación duplicada. |
 | — | `TipoMovimiento` | Valor derivado y polimórfico, solo para filtrar/mostrar. |
+| — | `ValorCuota`, `ItemCatalogo`, anulación de movimientos | Agregados al pedir valor de cuota por año, catálogos administrables y corrección de errores de carga sin borrar datos. |

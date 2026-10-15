@@ -9,7 +9,7 @@ namespace CooperadoraISFT94.Repositories.Interfaces
         /// <summary>Busca por DNI, nombre o apellido. Un filtro vacío devuelve todos.</summary>
         IReadOnlyList<Socio> Buscar(string? filtro);
 
-        /// <summary>Socios de categoría Responsable, ordenados por apellido y nombre.</summary>
+        /// <summary>Socios activos de categoría Responsable, ordenados por apellido y nombre.</summary>
         IReadOnlyList<Socio> ObtenerResponsables();
 
         /// <summary>Socios por los que responde el responsable indicado.</summary>

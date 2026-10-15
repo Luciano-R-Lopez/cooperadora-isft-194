@@ -18,9 +18,13 @@ namespace CooperadoraISFT94.Services
         private readonly IMotivoEgresoRepository _motivos;
         private readonly IMovimientoRegistrador _registrador;
 
-        private EgresoService(IUsuarioRepository usuarios, IMedioPagoRepository medios,
-                              IMotivoEgresoRepository motivos, IMovimientoRegistrador registrador)
+        private readonly Func<DateTime> _reloj;
+
+        internal EgresoService(IUsuarioRepository usuarios, IMedioPagoRepository medios,
+                               IMotivoEgresoRepository motivos, IMovimientoRegistrador registrador,
+                               Func<DateTime>? reloj = null)
         {
+            _reloj = reloj ?? (() => DateTime.Now);
             _usuarios = usuarios;
             _medios = medios;
             _motivos = motivos;
@@ -34,9 +38,11 @@ namespace CooperadoraISFT94.Services
             // Monto lo valida el Egreso; acá solo se buscan las entidades relacionadas.
             var usuario = _usuarios.ObtenerExistente(usuarioId);
             var medio = _medios.ObtenerExistente(dto.MedioPagoId);
+            medio.ExigirActivo();
             var motivo = _motivos.ObtenerExistente(dto.MotivoEgresoId);
+            motivo.ExigirActivo();
 
-            var egreso = new Egreso(usuario, DateTime.Now, dto.Monto, medio, motivo);
+            var egreso = new Egreso(usuario, _reloj(), dto.Monto, medio, motivo);
             _registrador.Registrar(egreso);
 
             return EgresoMapper.ADto(egreso);

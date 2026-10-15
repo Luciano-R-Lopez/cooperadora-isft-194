@@ -36,7 +36,10 @@ namespace CooperadoraISFT94.Models
                 throw new ReglaNegocioException("La cuota ya está pagada.");
         }
 
-        /// <summary>Única transición permitida: Pendiente -> Pagada. Una cuota pagada no vuelve atrás.</summary>
+        /// <summary>
+        /// Única transición manual: Pendiente -> Pagada. Una cuota pagada solo vuelve a pendiente
+        /// si se anula el ingreso que la pagó (<see cref="RevertirPago"/>).
+        /// </summary>
         public void CambiarEstado(EstadoCuota nuevoEstado)
         {
             if (!Enum.IsDefined(nuevoEstado))
@@ -47,6 +50,14 @@ namespace CooperadoraISFT94.Models
                 throw new ReglaNegocioException("Una cuota pagada no puede cambiar de estado.");
 
             Estado = nuevoEstado;
+        }
+
+        /// <summary>Vuelve la cuota a pendiente porque se anuló el ingreso con que se pagó.</summary>
+        public void RevertirPago()
+        {
+            if (!EstaPagada)
+                throw new ReglaNegocioException("La cuota no está pagada.");
+            Estado = EstadoCuota.Pendiente;
         }
     }
 }

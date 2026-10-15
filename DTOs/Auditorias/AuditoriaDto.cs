@@ -8,5 +8,6 @@ namespace CooperadoraISFT94.DTOs.Auditorias
         string Usuario,
         AccionAuditoria Accion,
         string EntidadAfectada,
-        int EntidadId);
+        int EntidadId,
+        string Detalle);
 }

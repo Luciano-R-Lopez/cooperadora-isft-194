@@ -38,6 +38,13 @@ namespace CooperadoraISFT94.Controllers
             return editado;
         }
 
+        /// <summary>Cualquier usuario logueado puede cambiar su propia contraseña.</summary>
+        public void CambiarMiPassword(CambioPasswordDto dto)
+        {
+            ExigirAlgunRol(Enum.GetValues<Rol>());
+            _usuarios.CambiarPasswordPropia(UsuarioActualId, dto);
+        }
+
         public UsuarioDto CambiarEstado(int usuarioId, bool activo)
         {
             ExigirRol(Rol.Administrador);

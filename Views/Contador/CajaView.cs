@@ -39,13 +39,13 @@ namespace CooperadoraISFT94.Views.Contador
         {
             Dock = DockStyle.Fill;
 
-            var contenido = new Panel { Dock = DockStyle.Fill };
+            var contenido = new Panel { Size = new Size(760, 410) };
             contenido.Controls.Add(ConstruirPanelAccion());
             contenido.Controls.Add(ConstruirPanelResumen());
             contenido.Controls.Add(ConstruirPanelMedios());
 
             // Orden de agregado: primero el que llena, después la franja superior.
-            Controls.Add(contenido);
+            Controls.Add(Ui.Centrado(contenido, margenSuperior: 10));
             Controls.Add(_estado);
         }
 

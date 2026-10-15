@@ -8,6 +8,6 @@ namespace CooperadoraISFT94.Repositories.InMemory
         private static readonly Lazy<AuditoriaRepository> _instancia = new(() => new AuditoriaRepository());
         public static AuditoriaRepository Instancia => _instancia.Value;
 
-        private AuditoriaRepository() : base("El registro de auditoría seleccionado no existe.") { }
+        internal AuditoriaRepository() : base("El registro de auditoría seleccionado no existe.") { }
     }
 }

@@ -12,7 +12,8 @@ namespace CooperadoraISFT94.DTOs.Socios
         string Email,
         Categoria Categoria,
         int? ResponsableId,
-        string? Responsable)
+        string? Responsable,
+        bool Activo)
     {
         public string NombreCompleto => $"{Nombre} {Apellido}";
 
@@ -20,5 +21,7 @@ namespace CooperadoraISFT94.DTOs.Socios
         public string Descripcion => $"{Apellido}, {Nombre} ({Dni})";
 
         public string ResponsableTexto => Responsable ?? "-";
+
+        public string EstadoTexto => Activo ? "Activo" : "De baja";
     }
 }

@@ -11,5 +11,8 @@ namespace CooperadoraISFT94.Services.Interfaces
         UsuarioDto Editar(UsuarioEditarDto dto, int actorId);
 
         UsuarioDto CambiarEstado(int usuarioId, bool activo, int actorId);
+
+        /// <summary>El usuario cambia su propia contraseña; tiene que informar la actual.</summary>
+        void CambiarPasswordPropia(int usuarioId, CambioPasswordDto dto);
     }
 }

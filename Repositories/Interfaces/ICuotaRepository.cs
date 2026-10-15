@@ -12,5 +12,8 @@ namespace CooperadoraISFT94.Repositories.Interfaces
 
         /// <summary>Última cuota generada para ese año (de cualquier socio); null si no hay ninguna.</summary>
         Cuota? ObtenerUltimaDelAnio(int anio);
+
+        /// <summary>Cuotas pendientes (de un año, o de todos con null), de la más vieja a la más nueva.</summary>
+        IReadOnlyList<Cuota> ObtenerPendientes(int? anio);
     }
 }

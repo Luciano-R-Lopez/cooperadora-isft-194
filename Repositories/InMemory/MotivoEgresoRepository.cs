@@ -8,6 +8,6 @@ namespace CooperadoraISFT94.Repositories.InMemory
         private static readonly Lazy<MotivoEgresoRepository> _instancia = new(() => new MotivoEgresoRepository());
         public static MotivoEgresoRepository Instancia => _instancia.Value;
 
-        private MotivoEgresoRepository() : base("El motivo de egreso seleccionado no existe.") { }
+        internal MotivoEgresoRepository() : base("El motivo de egreso seleccionado no existe.") { }
     }
 }

@@ -23,6 +23,18 @@ namespace CooperadoraISFT94.Controllers
             return _socios.Registrar(dto, UsuarioActualId);
         }
 
+        public SocioDto Editar(SocioEditarDto dto)
+        {
+            ExigirRol(Rol.Operador);
+            return _socios.Editar(dto, UsuarioActualId);
+        }
+
+        public SocioDto CambiarEstado(int socioId, bool activo)
+        {
+            ExigirRol(Rol.Operador);
+            return _socios.CambiarEstado(socioId, activo, UsuarioActualId);
+        }
+
         public SocioDto ObtenerPorId(int id)
         {
             ExigirRol(Rol.Operador);

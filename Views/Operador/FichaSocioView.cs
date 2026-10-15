@@ -19,6 +19,12 @@ namespace CooperadoraISFT94.Views.Operador
         private readonly Label _lblSocio = new();
         private readonly DataGridView _grilla = Ui.CrearGrilla();
         private readonly Button _btnPagar = new();
+        private readonly Button _btnGenerar = new();
+        private readonly Button _btnPagarACargo = new();
+
+        /// <summary>Datos del socio de la ficha; null si no se pudieron cargar.</summary>
+        private SocioDto? _socio;
+        private IReadOnlyList<SocioDto> _aCargo = Array.Empty<SocioDto>();
 
         public event Action? VolverSolicitado;
 
@@ -60,20 +66,25 @@ namespace CooperadoraISFT94.Views.Operador
 
         private Panel ConstruirBarraAcciones()
         {
-            var barra = new Panel { Dock = DockStyle.Bottom, Height = 50 };
+            var barra = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 50, Padding = new Padding(6, 8, 0, 0) };
 
-            var btnVolver = Tema.Secundario(new Button { Text = "← Volver", Location = new Point(10, 9), Size = new Size(100, 32) });
+            var btnVolver = Tema.Secundario(new Button { Text = "← Volver", Size = new Size(100, 32) });
             btnVolver.Click += (_, _) => VolverSolicitado?.Invoke();
 
-            var btnGenerar = new Button { Text = "Generar cuota", Location = new Point(130, 9), Size = new Size(130, 32) };
-            btnGenerar.Click += (_, _) => GenerarCuota();
+            _btnGenerar.Text = "Generar cuota";
+            _btnGenerar.Size = new Size(130, 32);
+            _btnGenerar.Click += (_, _) => GenerarCuota();
 
             _btnPagar.Text = "Registrar pago";
-            _btnPagar.Location = new Point(280, 9);
             _btnPagar.Size = new Size(130, 32);
             _btnPagar.Click += (_, _) => RegistrarPago();
 
-            barra.Controls.AddRange(new Control[] { btnVolver, btnGenerar, _btnPagar });
+            _btnPagarACargo.Text = "Pagar cuota de un socio a cargo";
+            _btnPagarACargo.Size = new Size(240, 32);
+            _btnPagarACargo.Visible = false;
+            _btnPagarACargo.Click += (_, _) => PagarCuotaACargo();
+
+            barra.Controls.AddRange(new Control[] { btnVolver, _btnGenerar, _btnPagar, _btnPagarACargo });
             return barra;
         }
 
@@ -82,7 +93,15 @@ namespace CooperadoraISFT94.Views.Operador
             try
             {
                 var socio = _socios.ObtenerPorId(_socioId);
-                _lblSocio.Text = $"{socio.NombreCompleto}\nDNI: {socio.Dni}   |   Categoría: {socio.Categoria}\n{DescribirVinculo(socio)}";
+                _socio = socio;
+                _aCargo = socio.Categoria == Categoria.Responsable ? _socios.ObtenerACargo(socio.Id) : Array.Empty<SocioDto>();
+
+                var baja = socio.Activo ? string.Empty : "   (DADO DE BAJA)";
+                _lblSocio.Text = $"{socio.NombreCompleto}{baja}\nDNI: {socio.Dni}   |   Categoría: {socio.Categoria}\n{DescribirVinculo(socio)}";
+
+                // A un socio dado de baja no se le generan cuotas nuevas (sí se le cobran las pendientes).
+                _btnGenerar.Enabled = socio.Activo;
+                _btnPagarACargo.Visible = _aCargo.Count > 0;
             }
             catch (NegocioException ex)
             {
@@ -96,10 +115,9 @@ namespace CooperadoraISFT94.Views.Operador
             if (socio.Categoria != Categoria.Responsable)
                 return $"Responsable: {socio.ResponsableTexto}";
 
-            var aCargo = _socios.ObtenerACargo(socio.Id);
-            return aCargo.Count == 0
+            return _aCargo.Count == 0
                 ? "Socios a cargo: ninguno"
-                : "Socios a cargo: " + string.Join("; ", aCargo.Select(s => s.NombreCompleto));
+                : "Socios a cargo: " + string.Join("; ", _aCargo.Select(s => s.NombreCompleto));
         }
 
         private void CargarCuotas(int? seleccionarId = null)
@@ -186,39 +204,81 @@ namespace CooperadoraISFT94.Views.Operador
             var cuota = CuotaSeleccionada();
             if (cuota is null) return;
 
-            IReadOnlyList<MedioPagoDto> medios;
-            try
-            {
-                medios = _catalogos.ObtenerMediosPago();
-            }
-            catch (NegocioException ex)
-            {
-                Ui.Error(ex.Message);
+            if (ObtenerMedios() is not { } medios)
                 return;
-            }
 
-            if (medios.Count == 0)
-            {
-                Ui.Error("No hay medios de pago cargados.");
-                return;
-            }
-
-            using var dialogo = new RegistrarPagoDialog(cuota, medios);
+            using var dialogo = new RegistrarPagoDialog(cuota, medios, _socio?.Responsable);
             if (dialogo.ShowDialog(this) != DialogResult.OK || dialogo.Medio is not MedioPagoDto medio)
                 return;
 
+            var pagadorId = dialogo.PagaResponsable ? _socio?.ResponsableId : null;
+            if (Cobrar(cuota.Id, medio.Id, pagadorId))
+                CargarCuotas(cuota.Id);
+        }
+
+        /// <summary>El responsable elige cuál de sus socios a cargo paga (y qué cuota) desde su propia ficha.</summary>
+        private void PagarCuotaACargo()
+        {
+            if (_socio is null || _aCargo.Count == 0 || ObtenerMedios() is not { } medios)
+                return;
+
+            using var dialogo = new PagoACargoDialog(_socio.Descripcion, _aCargo, CuotasDe, medios);
+            if (dialogo.ShowDialog(this) != DialogResult.OK
+                || dialogo.Cuota is not CuotaDto cuota || dialogo.Medio is not MedioPagoDto medio)
+                return;
+
+            Cobrar(cuota.Id, medio.Id, _socio.Id);
+        }
+
+        private IReadOnlyList<CuotaDto> CuotasDe(int socioId)
+        {
             try
             {
-                _cuotas.RegistrarPago(cuota.Id, medio.Id);
+                return _cuotas.ObtenerPorSocio(socioId);
             }
             catch (NegocioException ex)
             {
                 Ui.Error(ex.Message);
-                return;
+                return Array.Empty<CuotaDto>();
+            }
+        }
+
+        /// <summary>Medios de pago activos; null (con el error ya mostrado) si no hay o no se pudieron obtener.</summary>
+        private IReadOnlyList<MedioPagoDto>? ObtenerMedios()
+        {
+            try
+            {
+                var medios = _catalogos.ObtenerMediosPago();
+                if (medios.Count > 0)
+                    return medios;
+
+                Ui.Error("No hay medios de pago activos.");
+            }
+            catch (NegocioException ex)
+            {
+                Ui.Error(ex.Message);
             }
 
-            CargarCuotas(cuota.Id);
-            Ui.Info("Pago registrado. Se generó el ingreso correspondiente en la caja.");
+            return null;
+        }
+
+        /// <summary>Registra el cobro y ofrece imprimir el recibo. Devuelve false si no se pudo cobrar.</summary>
+        private bool Cobrar(int cuotaId, int medioId, int? pagadorId)
+        {
+            ReciboPagoDto recibo;
+            try
+            {
+                recibo = _cuotas.RegistrarPago(cuotaId, medioId, pagadorId);
+            }
+            catch (NegocioException ex)
+            {
+                Ui.Error(ex.Message);
+                return false;
+            }
+
+            if (Ui.Confirmar("Pago registrado. Se generó el ingreso correspondiente en la caja.\n\n¿Querés imprimir el recibo?"))
+                Reportes.ImprimirRecibo(recibo);
+            return true;
         }
     }
 }

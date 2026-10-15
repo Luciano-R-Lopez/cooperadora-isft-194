@@ -8,6 +8,6 @@ namespace CooperadoraISFT94.Repositories.InMemory
         private static readonly Lazy<MedioPagoRepository> _instancia = new(() => new MedioPagoRepository());
         public static MedioPagoRepository Instancia => _instancia.Value;
 
-        private MedioPagoRepository() : base("El medio de pago seleccionado no existe.") { }
+        internal MedioPagoRepository() : base("El medio de pago seleccionado no existe.") { }
     }
 }

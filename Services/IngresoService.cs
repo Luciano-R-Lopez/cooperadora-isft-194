@@ -18,8 +18,12 @@ namespace CooperadoraISFT94.Services
         private readonly IMedioPagoRepository _medios;
         private readonly IMovimientoRegistrador _registrador;
 
-        private IngresoService(IUsuarioRepository usuarios, IMedioPagoRepository medios, IMovimientoRegistrador registrador)
+        private readonly Func<DateTime> _reloj;
+
+        internal IngresoService(IUsuarioRepository usuarios, IMedioPagoRepository medios, IMovimientoRegistrador registrador,
+                                Func<DateTime>? reloj = null)
         {
+            _reloj = reloj ?? (() => DateTime.Now);
             _usuarios = usuarios;
             _medios = medios;
             _registrador = registrador;
@@ -36,8 +40,9 @@ namespace CooperadoraISFT94.Services
             // Solo se controla lo que depende de otros datos; monto y categoría los valida el Ingreso.
             var usuario = _usuarios.ObtenerExistente(usuarioId);
             var medio = _medios.ObtenerExistente(dto.MedioPagoId);
+            medio.ExigirActivo();
 
-            var ingreso = new Ingreso(usuario, DateTime.Now, dto.Monto, medio, dto.CategoriaIngreso);
+            var ingreso = new Ingreso(usuario, _reloj(), dto.Monto, medio, dto.CategoriaIngreso);
             _registrador.Registrar(ingreso);
 
             return IngresoMapper.ADto(ingreso);

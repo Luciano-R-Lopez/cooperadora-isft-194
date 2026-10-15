@@ -11,5 +11,7 @@ namespace CooperadoraISFT94.DTOs.Cuotas
         EstadoCuota Estado)
     {
         public string Descripcion => $"Cuota {Anio}";
+
+        public string DescripcionConMonto => $"Cuota {Anio} - {Monto:C2}";
     }
 }

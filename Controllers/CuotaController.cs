@@ -35,10 +35,29 @@ namespace CooperadoraISFT94.Controllers
             return _cuotas.ObtenerMontoSugerido(anio);
         }
 
-        public CuotaDto RegistrarPago(int cuotaId, int medioPagoId)
+        public GeneracionCuotasDto GenerarParaTodos(int anio, decimal monto)
         {
             ExigirRol(Rol.Operador);
-            return _cuotas.RegistrarPago(cuotaId, medioPagoId, UsuarioActualId);
+            return _cuotas.GenerarParaTodos(anio, monto, UsuarioActualId);
+        }
+
+        public void FijarValorCuota(int anio, decimal monto)
+        {
+            ExigirRol(Rol.Operador);
+            _cuotas.FijarValorCuota(anio, monto, UsuarioActualId);
+        }
+
+        /// <param name="pagadorId">El responsable del socio si es quien paga; null si paga el propio socio.</param>
+        public ReciboPagoDto RegistrarPago(int cuotaId, int medioPagoId, int? pagadorId = null)
+        {
+            ExigirRol(Rol.Operador);
+            return _cuotas.RegistrarPago(cuotaId, medioPagoId, UsuarioActualId, pagadorId);
+        }
+
+        public IReadOnlyList<CuotaPendienteDto> ObtenerPendientes(int? anio)
+        {
+            ExigirRol(Rol.Operador);
+            return _cuotas.ObtenerPendientes(anio);
         }
     }
 }

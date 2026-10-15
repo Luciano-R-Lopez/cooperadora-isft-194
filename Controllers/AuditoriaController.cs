@@ -18,10 +18,10 @@ namespace CooperadoraISFT94.Controllers
             _auditoria = auditoria;
         }
 
-        public IReadOnlyList<AuditoriaDto> ObtenerTodas()
+        public IReadOnlyList<AuditoriaDto> Obtener(AuditoriaFiltroDto filtro)
         {
             ExigirRol(Rol.Administrador);
-            return _auditoria.ObtenerTodas();
+            return _auditoria.Obtener(filtro);
         }
     }
 }
