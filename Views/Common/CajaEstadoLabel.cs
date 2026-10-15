@@ -1,4 +1,4 @@
-namespace CooperadoraISFT94.Views.Contador
+namespace CooperadoraISFT94.Views.Common
 {
     /// <summary>Franja de color que indica si la caja está abierta o cerrada.</summary>
     public class CajaEstadoLabel : Label

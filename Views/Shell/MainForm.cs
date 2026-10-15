@@ -14,6 +14,7 @@ namespace CooperadoraISFT94.Views.Shell
     {
         private readonly AuthController _auth = new();
         private readonly UsuarioDto _usuario;
+        private readonly Label _lblUsuario = new() { AutoSize = true, Location = new Point(12, 14) };
 
         /// <summary>True si el usuario eligió "Cerrar sesión" (volver al login) en lugar de cerrar la app.</summary>
         public bool CerroSesion { get; private set; }
@@ -23,6 +24,10 @@ namespace CooperadoraISFT94.Views.Shell
             _usuario = SesionActual.Instancia.Usuario
                 ?? throw new InvalidOperationException("No hay una sesión iniciada.");
             ConstruirInterfaz();
+
+            // Si el usuario edita sus propios datos, la barra superior los refleja sin volver a iniciar sesión.
+            SesionActual.Instancia.UsuarioActualizado += MostrarUsuario;
+            FormClosed += (_, _) => SesionActual.Instancia.UsuarioActualizado -= MostrarUsuario;
         }
 
         private void ConstruirInterfaz()
@@ -34,12 +39,7 @@ namespace CooperadoraISFT94.Views.Shell
 
             var barra = new Panel { Dock = DockStyle.Top, Height = 45 };
 
-            var lblUsuario = new Label
-            {
-                Text = $"{_usuario.NombreCompleto}  ({_usuario.RolTexto})",
-                AutoSize = true,
-                Location = new Point(12, 14)
-            };
+            MostrarUsuario(_usuario);
 
             var btnCerrarSesion = new Button
             {
@@ -50,7 +50,7 @@ namespace CooperadoraISFT94.Views.Shell
             };
             btnCerrarSesion.Click += (_, _) => CerrarSesion();
 
-            barra.Controls.Add(lblUsuario);
+            barra.Controls.Add(_lblUsuario);
             barra.Controls.Add(btnCerrarSesion);
 
             var tabs = new TabControl { Dock = DockStyle.Fill };
@@ -69,6 +69,9 @@ namespace CooperadoraISFT94.Views.Shell
             Controls.Add(tabs);
             Controls.Add(barra);
         }
+
+        private void MostrarUsuario(UsuarioDto usuario) =>
+            _lblUsuario.Text = $"{usuario.NombreCompleto}  ({usuario.RolTexto})";
 
         private static void AgregarTab(TabControl tabs, string titulo, Control vista)
         {

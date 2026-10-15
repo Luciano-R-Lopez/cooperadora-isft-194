@@ -9,5 +9,8 @@ namespace CooperadoraISFT94.Repositories.Interfaces
 
         /// <summary>True si el socio ya tiene una cuota para ese año.</summary>
         bool ExisteParaAnio(Socio socio, int anio);
+
+        /// <summary>Última cuota generada para ese año (de cualquier socio); null si no hay ninguna.</summary>
+        Cuota? ObtenerUltimaDelAnio(int anio);
     }
 }

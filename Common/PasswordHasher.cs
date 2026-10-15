@@ -16,14 +16,27 @@ namespace CooperadoraISFT94.Common
             return $"{Iteraciones}.{Convert.ToBase64String(salt)}.{Convert.ToBase64String(hash)}";
         }
 
+        /// <summary>Un hash guardado con formato inválido se trata como contraseña incorrecta, no como error.</summary>
         public static bool Verificar(string password, string hashGuardado)
         {
             var partes = hashGuardado.Split('.');
-            if (partes.Length != 3 || !int.TryParse(partes[0], out var iteraciones))
+            if (partes.Length != 3 || !int.TryParse(partes[0], out var iteraciones) || iteraciones <= 0)
                 return false;
 
-            var salt = Convert.FromBase64String(partes[1]);
-            var hashEsperado = Convert.FromBase64String(partes[2]);
+            byte[] salt, hashEsperado;
+            try
+            {
+                salt = Convert.FromBase64String(partes[1]);
+                hashEsperado = Convert.FromBase64String(partes[2]);
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+
+            if (salt.Length == 0 || hashEsperado.Length == 0)
+                return false;
+
             var hashCalculado = Rfc2898DeriveBytes.Pbkdf2(password, salt, iteraciones, HashAlgorithmName.SHA256, hashEsperado.Length);
 
             return CryptographicOperations.FixedTimeEquals(hashCalculado, hashEsperado);

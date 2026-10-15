@@ -19,13 +19,13 @@ namespace CooperadoraISFT94.Models
         public string Nombre
         {
             get => _nombre;
-            set => _nombre = Validaciones.ExigirTexto(value, "nombre", LargoMaximoNombre);
+            protected set => _nombre = Validaciones.ExigirTexto(value, "nombre", LargoMaximoNombre);
         }
 
         public string Apellido
         {
             get => _apellido;
-            set => _apellido = Validaciones.ExigirTexto(value, "apellido", LargoMaximoNombre);
+            protected set => _apellido = Validaciones.ExigirTexto(value, "apellido", LargoMaximoNombre);
         }
 
         public string NombreCompleto => $"{Nombre} {Apellido}";

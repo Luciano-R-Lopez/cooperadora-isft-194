@@ -61,6 +61,9 @@ namespace CooperadoraISFT94.Services
             return CuotaMapper.ADto(cuota);
         }
 
+        public decimal? ObtenerMontoSugerido(int anio) =>
+            _cuotas.ObtenerUltimaDelAnio(anio)?.Monto;
+
         public CuotaDto RegistrarPago(int cuotaId, int medioPagoId, int usuarioId)
         {
             var cuota = _cuotas.ObtenerExistente(cuotaId);

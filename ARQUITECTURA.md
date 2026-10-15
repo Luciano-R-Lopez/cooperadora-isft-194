@@ -26,8 +26,8 @@ Misma lógica que el proyecto Eventos: cada capa hace solo su parte.
 
 ```
 Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
-         │           └─ Socio    (Categoria)
-         ├─ Movimiento (abstracta: Usuario, Fecha, Monto, MedioPago, AfectarCaja())
+         │           └─ Socio    (Categoria, Responsable?) ──► Socio (Responsable)
+         ├─ Movimiento (abstracta: Usuario, Fecha, Monto, MedioPago, Caja, AfectarCaja())
          │     ├─ Ingreso (CategoriaIngreso)
          │     └─ Egreso  (MotivoEgreso)
          ├─ Cuota (Socio, Monto, Anio, Estado) ◄── DetalleIngresoCuota ──► Ingreso
@@ -36,21 +36,34 @@ Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
          └─ Auditoria (Usuario, Accion, EntidadAfectada, EntidadId, Fecha)
 ```
 
-- **Polimorfismo:** `Movimiento.AfectarCaja` lo implementa cada subclase (el ingreso acredita, el egreso debita).
+- **Polimorfismo:** `Movimiento.AfectarCaja` hace los controles comunes y delega en `Aplicar`, que implementa cada subclase
+  (el ingreso acredita, el egreso debita).
   Nadie pregunta "¿es ingreso o egreso?" para operar la caja; `Tipo` y `Clasificacion` también son polimórficos.
 - **Un solo repositorio de movimientos** (`IMovimientoRepository`): ingresos y egresos comparten id y listado.
 - **`IMovimientoRegistrador`** es el único lugar que aplica un movimiento a la caja abierta, guarda y audita.
   Lo usan `IngresoService`, `EgresoService` y `CuotaService` (cobro de cuota).
-- **Los movimientos no apuntan a la caja** (como en el UML): pertenecen a la caja cuyo período
-  (`Caja.Abarca(fecha)`) los contiene, y su efecto queda en `Caja.MontoTotal` y `CajaTotalMedioPago`.
+- **Cada movimiento guarda la caja a la que se aplicó** (`Movimiento.Caja`, la asigna `AfectarCaja`, una sola vez).
+  Los listados y el resumen de una caja filtran por esa referencia, no por fechas. Su efecto queda en
+  `Caja.MontoTotal` y `CajaTotalMedioPago`.
 - **`Caja.MontoTotal`**: con la caja abierta es el monto esperado; `CerrarCaja(fecha, montoTotal)` lo reemplaza por el contado.
   El esperado de una caja cerrada se recalcula como `MontoInicial + Σ CajaTotalMedioPago`.
+- **Saldo insuficiente:** un egreso no puede dejar la caja en negativo (`Caja.Debitar`). El saldo de un medio de pago
+  sí puede ser negativo (por ejemplo, un egreso por transferencia sin ingresos por transferencia).
 - **Cobrar una cuota** crea un `Ingreso(CuotaSocial)`, su `DetalleIngresoCuota` y pasa la cuota a `Pagada`.
   Los ingresos de cuota social no se pueden cargar a mano.
+- **Monto de la cuota:** se carga al generarla; el diálogo propone el de la última cuota generada para ese año
+  (`ICuotaService.ObtenerMontoSugerido`) y el operador lo puede cambiar.
+- **Socio responsable:** un socio puede tener (opcionalmente) un responsable, que debe ser otro socio de categoría
+  `Responsable`; un `Responsable` no puede tener responsable. La categoría se fija al inscribir y no cambia,
+  para que ningún socio quede a cargo de alguien que dejó de ser responsable.
 - **Auditoría:** cada servicio llama a `IAuditoriaService.Registrar` al dar de alta / modificar / dar de baja
   (desactivar un usuario = `Baja`). Solo la ve el administrador.
 - **Módulos por rol:** `Views/Shell/ModulosPorRol.cs`. Sumar un módulo es agregar una línea ahí.
 - **Permisos:** Operador = socios, cuotas e ingresos (donación/subsidio); Contador = caja, egresos y consulta de movimientos; Administrador = usuarios y auditoría.
+
+### Tests
+`Tests/CooperadoraISFT94.Tests` (xUnit) prueba las reglas del dominio. Se corren con `dotnet test CooperadoraISFT94.slnx`.
+El `.csproj` de la app excluye la carpeta `Tests/` para no compilarla adentro.
 
 ### Agregar un medio de pago o motivo de egreso
 Son filas de datos (`MedioPagoRepository` / `MotivoEgresoRepository`), no código: los desplegables los leen
@@ -61,6 +74,8 @@ de `ICatalogoService`. Hoy se cargan en `DatosIniciales`; con MySQL, con un INSE
 |---|---|---|
 | `Usuario` sin nombre de usuario | `Usuario.NombreUsuario` (único, inmutable) | Hace falta un identificador de login. |
 | `Usuario.password` | `PasswordHash` (PBKDF2) | Nunca se guarda la contraseña en texto plano. |
-| `AfectarCaja()` sin parámetros | `AfectarCaja(Caja, CajaTotalMedioPago)` | El UML no vincula movimiento y caja; se le pasa la caja destino en vez de usar estado global. |
+| `AfectarCaja()` sin parámetros | `AfectarCaja(Caja, CajaTotalMedioPago)` | Se le pasa la caja destino en vez de usar estado global. |
+| Movimiento sin caja | `Movimiento.Caja` | Ubicar los movimientos de una caja por fechas es frágil (cierre y apertura en el mismo segundo, precisión de la base). |
+| — | `Socio.Responsable` | Relación opcional entre socios pedida después del UML. |
 | — | Clase base `Persona` | `Usuario` y `Socio` compartían nombre/apellido y su validación duplicada. |
 | — | `TipoMovimiento` | Valor derivado y polimórfico, solo para filtrar/mostrar. |

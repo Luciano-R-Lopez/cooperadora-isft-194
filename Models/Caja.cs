@@ -41,10 +41,6 @@ namespace CooperadoraISFT94.Models
                 throw new ReglaNegocioException(MensajeSinCajaAbierta);
         }
 
-        /// <summary>True si la fecha cae dentro del período en que la caja estuvo (o está) abierta.</summary>
-        public bool Abarca(DateTime fecha) =>
-            fecha >= FechaApertura && (FechaCierre is null || fecha <= FechaCierre);
-
         /// <summary>Suma un ingreso al monto total.</summary>
         public void Acreditar(decimal monto)
         {
@@ -52,11 +48,14 @@ namespace CooperadoraISFT94.Models
             MontoTotal += Validaciones.ExigirMontoPositivo(monto, "monto");
         }
 
-        /// <summary>Resta un egreso del monto total.</summary>
+        /// <summary>Resta un egreso del monto total. No se puede sacar más de lo que hay en la caja.</summary>
         public void Debitar(decimal monto)
         {
             ExigirAbierta();
-            MontoTotal -= Validaciones.ExigirMontoPositivo(monto, "monto");
+            Validaciones.ExigirMontoPositivo(monto, "monto");
+            if (monto > MontoTotal)
+                throw new ReglaNegocioException($"Saldo insuficiente: en la caja hay {MontoTotal:C2}.");
+            MontoTotal -= monto;
         }
 
         /// <param name="montoTotal">Monto contado al cerrar.</param>

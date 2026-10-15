@@ -7,16 +7,27 @@ namespace CooperadoraISFT94.Views.Operador
     public class GenerarCuotaDialog : Form
     {
         private readonly int _socioId;
+        private readonly Func<int, decimal?> _montoSugerido;
         private readonly NumericUpDown _numAnio = new();
         private readonly NumericUpDown _numMonto = new();
 
         /// <summary>Datos cargados; solo tiene valor si el usuario confirmó con "Generar".</summary>
         public CuotaCrearDto? Datos { get; private set; }
 
-        public GenerarCuotaDialog(int socioId)
+        /// <param name="montoSugerido">Monto a proponer para un año (el de la última cuota de ese año); null si no hay.</param>
+        public GenerarCuotaDialog(int socioId, Func<int, decimal?> montoSugerido)
         {
             _socioId = socioId;
+            _montoSugerido = montoSugerido;
             ConstruirInterfaz();
+            ProponerMonto();
+        }
+
+        /// <summary>Completa el monto con el sugerido para el año elegido; el operador lo puede cambiar.</summary>
+        private void ProponerMonto()
+        {
+            if (_montoSugerido((int)_numAnio.Value) is decimal monto && monto <= _numMonto.Maximum)
+                _numMonto.Value = monto;
         }
 
         private void ConstruirInterfaz()
@@ -33,6 +44,7 @@ namespace CooperadoraISFT94.Views.Operador
             _numAnio.Minimum = 2000;
             _numAnio.Maximum = 2100;
             _numAnio.Value = DateTime.Today.Year;
+            _numAnio.ValueChanged += (_, _) => ProponerMonto();
 
             _numMonto.Location = new Point(20, 95);
             _numMonto.Size = new Size(280, 27);

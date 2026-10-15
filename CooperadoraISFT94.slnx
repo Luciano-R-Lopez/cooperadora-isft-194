@@ -1,3 +1,6 @@
 <Solution>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/CooperadoraISFT94.Tests/CooperadoraISFT94.Tests.csproj" />
+  </Folder>
   <Project Path="CooperadoraISFT94.csproj" />
 </Solution>

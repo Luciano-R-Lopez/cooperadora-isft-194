@@ -23,7 +23,7 @@ namespace CooperadoraISFT94.Models
         public string Dni
         {
             get => _dni;
-            set
+            private set
             {
                 var dni = (value ?? string.Empty).Trim();
                 if (!Validaciones.EsDniValido(dni))
@@ -36,7 +36,7 @@ namespace CooperadoraISFT94.Models
         public string Telefono
         {
             get => _telefono;
-            set
+            private set
             {
                 var telefono = (value ?? string.Empty).Trim();
                 if (telefono.Length > 0 && !Validaciones.EsTelefonoValido(telefono))
@@ -49,7 +49,7 @@ namespace CooperadoraISFT94.Models
         public string Email
         {
             get => _email;
-            set
+            private set
             {
                 var email = (value ?? string.Empty).Trim();
                 if (email.Length > 0 && !Validaciones.EsEmailValido(email))
@@ -58,15 +58,18 @@ namespace CooperadoraISFT94.Models
             }
         }
 
+        /// <summary>
+        /// Se fija al inscribir al socio y no cambia: si un Responsable pasara a Socio, sus socios a cargo
+        /// quedarían apuntando a alguien que ya no es responsable. Para permitir el cambio, el servicio
+        /// tendría que controlar antes que no tenga socios a cargo.
+        /// </summary>
         public Categoria Categoria
         {
             get => _categoria;
-            set
+            private set
             {
                 if (!Enum.IsDefined(value))
                     throw new ReglaNegocioException("La categoría no es válida.");
-                if (value == Categoria.Responsable && Responsable is not null)
-                    throw new ReglaNegocioException("Un socio que tiene responsable no puede pasar a ser Responsable.");
                 _categoria = value;
             }
         }

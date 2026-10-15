@@ -153,7 +153,7 @@ namespace CooperadoraISFT94.Views.Operador
 
         private void GenerarCuota()
         {
-            using var dialogo = new GenerarCuotaDialog(_socioId);
+            using var dialogo = new GenerarCuotaDialog(_socioId, MontoSugerido);
             if (dialogo.ShowDialog(this) != DialogResult.OK || dialogo.Datos is null)
                 return;
 
@@ -165,6 +165,19 @@ namespace CooperadoraISFT94.Views.Operador
             catch (NegocioException ex)
             {
                 Ui.Error(ex.Message);
+            }
+        }
+
+        /// <summary>La sugerencia es opcional: si no se puede obtener, el diálogo arranca sin monto.</summary>
+        private decimal? MontoSugerido(int anio)
+        {
+            try
+            {
+                return _cuotas.ObtenerMontoSugerido(anio);
+            }
+            catch (NegocioException)
+            {
+                return null;
             }
         }
 
@@ -184,13 +197,19 @@ namespace CooperadoraISFT94.Views.Operador
                 return;
             }
 
+            if (medios.Count == 0)
+            {
+                Ui.Error("No hay medios de pago cargados.");
+                return;
+            }
+
             using var dialogo = new RegistrarPagoDialog(cuota, medios);
-            if (dialogo.ShowDialog(this) != DialogResult.OK)
+            if (dialogo.ShowDialog(this) != DialogResult.OK || dialogo.Medio is not MedioPagoDto medio)
                 return;
 
             try
             {
-                _cuotas.RegistrarPago(cuota.Id, dialogo.Medio.Id);
+                _cuotas.RegistrarPago(cuota.Id, medio.Id);
             }
             catch (NegocioException ex)
             {

@@ -33,7 +33,9 @@ namespace CooperadoraISFT94.Controllers
         public UsuarioDto Editar(UsuarioEditarDto dto)
         {
             ExigirRol(Rol.Administrador);
-            return _usuarios.Editar(dto, UsuarioActualId);
+            var editado = _usuarios.Editar(dto, UsuarioActualId);
+            Sesion.Actualizar(editado);
+            return editado;
         }
 
         public UsuarioDto CambiarEstado(int usuarioId, bool activo)

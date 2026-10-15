@@ -11,8 +11,8 @@ namespace CooperadoraISFT94.Views.Operador
         private readonly IReadOnlyList<MedioPagoDto> _medios;
         private readonly ComboBox _cmbMedio = new();
 
-        /// <summary>Medio elegido; solo es válido si el usuario confirmó con "Registrar pago".</summary>
-        public MedioPagoDto Medio => (MedioPagoDto)_cmbMedio.SelectedItem!;
+        /// <summary>Medio elegido; null si no hay ninguno para elegir.</summary>
+        public MedioPagoDto? Medio => _cmbMedio.SelectedItem as MedioPagoDto;
 
         public RegistrarPagoDialog(CuotaDto cuota, IReadOnlyList<MedioPagoDto> medios)
         {

@@ -17,10 +17,8 @@ namespace CooperadoraISFT94.Models
 
         public override string Clasificacion => Motivo.Nombre;
 
-        public override void AfectarCaja(Caja caja, CajaTotalMedioPago totalMedioPago)
+        protected override void Aplicar(Caja caja, CajaTotalMedioPago totalMedioPago)
         {
-            ValidarDestino(caja, totalMedioPago);
-
             caja.Debitar(Monto);
             totalMedioPago.Debitar(Monto);
         }

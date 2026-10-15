@@ -17,5 +17,8 @@ namespace CooperadoraISFT94.Repositories.InMemory
 
         public bool ExisteParaAnio(Socio socio, int anio) =>
             Items.Any(c => ReferenceEquals(c.Socio, socio) && c.Anio == anio);
+
+        public Cuota? ObtenerUltimaDelAnio(int anio) =>
+            Items.Where(c => c.Anio == anio).MaxBy(c => c.Id);
     }
 }

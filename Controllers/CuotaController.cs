@@ -29,6 +29,12 @@ namespace CooperadoraISFT94.Controllers
             return _cuotas.Generar(dto, UsuarioActualId);
         }
 
+        public decimal? ObtenerMontoSugerido(int anio)
+        {
+            ExigirRol(Rol.Operador);
+            return _cuotas.ObtenerMontoSugerido(anio);
+        }
+
         public CuotaDto RegistrarPago(int cuotaId, int medioPagoId)
         {
             ExigirRol(Rol.Operador);

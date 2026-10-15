@@ -5,7 +5,7 @@ using CooperadoraISFT94.DTOs.Ingresos;
 using CooperadoraISFT94.Enums;
 using CooperadoraISFT94.Views.Common;
 
-namespace CooperadoraISFT94.Views.Contador
+namespace CooperadoraISFT94.Views.Operador
 {
     /// <summary>
     /// Carga de ingresos que no son cuotas (donaciones, subsidios), a cargo del Operador.

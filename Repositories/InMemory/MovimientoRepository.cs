@@ -11,6 +11,6 @@ namespace CooperadoraISFT94.Repositories.InMemory
         private MovimientoRepository() : base("El movimiento seleccionado no existe.") { }
 
         public IReadOnlyList<Movimiento> ObtenerPorCaja(Caja caja) =>
-            Items.Where(m => caja.Abarca(m.Fecha)).ToList();
+            Items.Where(m => ReferenceEquals(m.Caja, caja)).ToList();
     }
 }

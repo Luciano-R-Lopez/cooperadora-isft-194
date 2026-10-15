@@ -32,7 +32,7 @@ namespace CooperadoraISFT94.Models
         public Rol Rol
         {
             get => _rol;
-            set
+            private set
             {
                 if (!Enum.IsDefined(value))
                     throw new ReglaNegocioException("El rol no es válido.");
