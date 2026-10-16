@@ -14,7 +14,7 @@ namespace CooperadoraISFT94.Repositories.InMemory
         {
             CargarCatalogos();
             CargarUsuarios();
-            CargarSociosYCuotas();
+            CargarDatosDeEjemplo();
         }
 
         private static void CargarCatalogos()
@@ -44,25 +44,16 @@ namespace CooperadoraISFT94.Repositories.InMemory
             usuarios.Agregar(CrearUsuario("contador", "Carla", "Contadora", "contador123", Rol.Contador));
         }
 
-        private static void CargarSociosYCuotas()
+        /// <summary>Socios, cuotas, cajas y movimientos simulados (ver <see cref="DatosDeEjemplo"/>).</summary>
+        private static void CargarDatosDeEjemplo()
         {
-            var socios = SocioRepository.Instancia;
-            var cuotas = CuotaRepository.Instancia;
-            if (socios.ObtenerTodos().Count > 0) return;
+            if (SocioRepository.Instancia.ObtenerTodos().Count > 0) return;
 
-            var lucia = socios.Agregar(new Socio("Lucía", "Fernández", "30123456", "1155550101", "lucia@mail.com", Categoria.Socio));
-            var martin = socios.Agregar(new Socio("Martín", "Gómez", "28456789", "1155550202", "martin@mail.com", Categoria.Responsable));
-            var sofia = new Socio("Sofía", "Pérez", "40111222", "", "", Categoria.Socio);
-            sofia.AsignarResponsable(martin);
-            socios.Agregar(sofia);
-
-            // Las cuotas nacen pendientes: pasan a pagadas cuando se cobran (con su ingreso en caja).
-            cuotas.Agregar(new Cuota(lucia, 5000m, 2025));
-            cuotas.Agregar(new Cuota(lucia, 5000m, 2026));
-            cuotas.Agregar(new Cuota(martin, 5000m, 2026));
-
-            // Valor de la cuota del año: se propone al generar cuotas nuevas.
-            ValorCuotaRepository.Instancia.Agregar(new ValorCuota(2026, 5000m));
+            var usuarios = UsuarioRepository.Instancia;
+            DatosDeEjemplo.Cargar(
+                usuarios.ObtenerPorNombreUsuario("admin")!.Id,
+                usuarios.ObtenerPorNombreUsuario("operador")!.Id,
+                usuarios.ObtenerPorNombreUsuario("contador")!.Id);
         }
 
         private static Usuario CrearUsuario(string nombreUsuario, string nombre, string apellido, string password, Rol rol) =>

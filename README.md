@@ -21,6 +21,22 @@ Usuarios de prueba (se cargan en `Repositories/InMemory/DatosIniciales.cs`):
 | `admin` | `admin123` | Administrador: usuarios, catálogos y auditoría |
 | `operador` | `operador123` | Operador: socios, cuotas e ingresos |
 | `contador` | `contador123` | Contador: caja, egresos y movimientos |
+| `pablo.paz` | `operador123` | Segundo operador |
+
+### Datos de ejemplo
+
+Al iniciar, `Repositories/InMemory/DatosDeEjemplo.cs` simula el uso de la cooperadora desde marzo de 2024 hasta hoy,
+usando los servicios reales (así todo cumple las reglas y queda en la auditoría):
+
+- **38 socios**: 7 responsables con 1 a 3 socios a cargo, 4 que se inscriben a mitad de 2025 y 3 dados de baja.
+- **Cuotas 2024, 2025 y 2026** ($ 4.000, $ 4.500 y $ 5.000), muchas pagadas (varias por el responsable) y algunas
+  pendientes para el listado de morosos.
+- **Una caja por mes** con cobros, donaciones, subsidios (abril, agosto y noviembre), servicios y otros gastos;
+  algunos cierres con diferencia. La caja de hoy queda abierta con movimientos y una donación anulada.
+- Cambios de catálogos (se agregan "Mercado Pago" y "Limpieza", se desactiva "Cheque"), un usuario desactivado
+  y la corrección de datos de un socio.
+
+Es determinístico: siempre genera lo mismo (para la misma fecha de hoy). Se elimina al conectar la base de datos.
 
 Tests:
 
