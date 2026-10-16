@@ -54,6 +54,10 @@ namespace CooperadoraISFT94.Views.Common
             if (control.Tag != ColoresPropios)
                 Estilar(control);
 
+            // Las partes internas de un campo numérico (su cuadro de texto y sus flechas) las estila el propio campo.
+            if (control is NumericUpDown)
+                return;
+
             foreach (Control hijo in control.Controls)
                 Aplicar(hijo);
 
@@ -88,9 +92,7 @@ namespace CooperadoraISFT94.Views.Common
                     texto.BorderStyle = BorderStyle.FixedSingle;
                     break;
                 case NumericUpDown numero:
-                    numero.BackColor = Superficie;
-                    numero.ForeColor = Texto;
-                    numero.BorderStyle = BorderStyle.FixedSingle;
+                    EstilarCampoNumerico(numero);
                     break;
                 case ComboBox combo:
                     EstilarDesplegable(combo);
@@ -114,6 +116,85 @@ namespace CooperadoraISFT94.Views.Common
                     control.BackColor = Fondo;
                     break;
             }
+        }
+
+        /// <summary>
+        /// Las flechas de los campos numéricos son nativas y siempre claras: se redibujan encima
+        /// (después de que Windows las pinta) con los colores del tema.
+        /// </summary>
+        private static void EstilarCampoNumerico(NumericUpDown numero)
+        {
+            numero.BackColor = Superficie;
+            numero.ForeColor = Texto;
+            numero.BorderStyle = BorderStyle.FixedSingle;
+
+            foreach (Control parte in numero.Controls)
+            {
+                parte.BackColor = Superficie;
+                parte.ForeColor = Texto;
+
+                if (parte is not TextBox)
+                {
+                    parte.Paint -= PintarFlechas;
+                    parte.Paint += PintarFlechas;
+                    // Al pasar el mouse o presionar, Windows las vuelve a pintar; se repinta todo para cubrirlo.
+                    parte.MouseMove += (_, _) => parte.Invalidate();
+                    parte.MouseUp += (_, _) => parte.Invalidate();
+                    parte.MouseLeave += (_, _) => parte.Invalidate();
+                }
+            }
+
+            numero.EnabledChanged += (_, _) =>
+            {
+                foreach (Control parte in numero.Controls)
+                    parte.Invalidate();
+            };
+        }
+
+        private static void PintarFlechas(object? sender, PaintEventArgs e)
+        {
+            if (sender is not Control flechas)
+                return;
+
+            var g = e.Graphics;
+            var area = flechas.ClientRectangle;
+            var mitad = area.Height / 2;
+            var puntero = flechas.PointToClient(Cursor.Position);
+            var sobre = area.Contains(puntero);
+
+            g.Clear(Superficie);
+
+            // Resalta la flecha que está bajo el mouse.
+            if (sobre)
+            {
+                using var resaltado = new SolidBrush(Seleccion);
+                g.FillRectangle(resaltado, 0, puntero.Y < mitad ? 0 : mitad, area.Width, puntero.Y < mitad ? mitad : area.Height - mitad);
+            }
+
+            using (var borde = new Pen(Borde))
+            {
+                g.DrawLine(borde, 0, 0, 0, area.Height);
+                g.DrawLine(borde, 0, mitad, area.Width, mitad);
+            }
+
+            var habilitado = flechas.Parent?.Enabled ?? true;
+            using var pincel = new SolidBrush(habilitado ? Texto : TextoSecundario);
+            var centroX = area.Width / 2f;
+            const float anchoMedio = 3.5f, alto = 3f;
+
+            var arriba = mitad / 2f;
+            g.FillPolygon(pincel, new[]
+            {
+                new PointF(centroX - anchoMedio, arriba + alto / 2), new PointF(centroX + anchoMedio, arriba + alto / 2),
+                new PointF(centroX, arriba - alto / 2)
+            });
+
+            var abajo = mitad + (area.Height - mitad) / 2f;
+            g.FillPolygon(pincel, new[]
+            {
+                new PointF(centroX - anchoMedio, abajo - alto / 2), new PointF(centroX + anchoMedio, abajo - alto / 2),
+                new PointF(centroX, abajo + alto / 2)
+            });
         }
 
         /// <summary>

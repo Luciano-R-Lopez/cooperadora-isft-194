@@ -13,9 +13,9 @@ namespace CooperadoraISFT94.Views.Admin
         private readonly DataGridView _grilla = Ui.CrearGrilla();
 
         private readonly CheckBox _chkDesde = new() { Text = "Desde", AutoSize = true };
-        private readonly DateTimePicker _dtpDesde = new() { Format = DateTimePickerFormat.Short, Width = 120 };
+        private readonly CampoFecha _dtpDesde = new() { Width = 130 };
         private readonly CheckBox _chkHasta = new() { Text = "Hasta", AutoSize = true };
-        private readonly DateTimePicker _dtpHasta = new() { Format = DateTimePickerFormat.Short, Width = 120 };
+        private readonly CampoFecha _dtpHasta = new() { Width = 130 };
         private readonly ComboBox _cmbAccion = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 140 };
         private readonly TextBox _txtBuscar = new() { Width = 220 };
 
