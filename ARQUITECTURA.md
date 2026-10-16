@@ -80,6 +80,8 @@ Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
   Los colores van siempre por `Tema` (nada de `Color.X` sueltos). Las pestañas usan `Pestanias` (el `TabControl` nativo
   no se puede oscurecer). El login y la ventana principal abren maximizados; los formularios de tamaño fijo van
   centrados con `Ui.Centrado`. Los desplegables se llenan con `Ui.Llenar` (no con `DataSource`).
+  Los avisos usan `Mensaje` (vía `Ui.Error/Info/Confirmar`), las fechas `CampoFecha` (no `DateTimePicker`), y las
+  flechas de los campos numéricos, los desplegables y las barras de desplazamiento usan el modo oscuro de Windows.
 - **Formato regional:** `Program.cs` fija la cultura `es-AR`, así los montos se ven "$ 5.000,00" sin importar
   la configuración de Windows.
 - **Módulos por rol:** `Views/Shell/ModulosPorRol.cs`. Sumar un módulo es agregar una línea ahí.

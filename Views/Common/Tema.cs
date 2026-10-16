@@ -114,6 +114,8 @@ namespace CooperadoraISFT94.Views.Common
                     break;
                 case Panel or UserControl or TableLayoutPanel:
                     control.BackColor = Fondo;
+                    if (control is ScrollableControl { AutoScroll: true })
+                        UsarBarrasOscuras(control);
                     break;
             }
         }
@@ -205,8 +207,10 @@ namespace CooperadoraISFT94.Views.Common
         {
             combo.BackColor = Superficie;
             combo.ForeColor = Texto;
-            combo.FlatStyle = FlatStyle.Flat;
+            // Estilo estándar + tema oscuro de Windows: así también el botón de la flecha se ve oscuro.
+            combo.FlatStyle = FlatStyle.Standard;
             combo.DrawMode = DrawMode.OwnerDrawFixed;
+            UsarTemaOscuroDeWindows(combo, "DarkMode_CFD");
             combo.DrawItem -= DibujarElementoDesplegable;
             combo.DrawItem += DibujarElementoDesplegable;
         }
@@ -271,6 +275,25 @@ namespace CooperadoraISFT94.Views.Common
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int atributo, ref int valor, int tamanio);
 
+        /// <summary>
+        /// Barras de desplazamiento con el estilo oscuro de Windows 10/11 (el del Explorador en modo oscuro).
+        /// En versiones viejas el estilo no existe y quedan como estaban.
+        /// </summary>
+        private static void UsarBarrasOscuras(Control control) => UsarTemaOscuroDeWindows(control, "DarkMode_Explorer");
+
+        private static void UsarTemaOscuroDeWindows(Control control, string tema)
+        {
+            void Activar() => _ = SetWindowTheme(control.Handle, tema, null);
+
+            if (control.IsHandleCreated)
+                Activar();
+            else
+                control.HandleCreated += (_, _) => Activar();
+        }
+
+        [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+        private static extern int SetWindowTheme(IntPtr hwnd, string? subAppName, string? subIdList);
+
         private static void EstilarBoton(Button boton)
         {
             var secundario = boton.Tag == BotonSecundario;
@@ -302,6 +325,8 @@ namespace CooperadoraISFT94.Views.Common
 
         private static void EstilarGrilla(DataGridView grilla)
         {
+            foreach (var barra in grilla.Controls.OfType<ScrollBar>())
+                UsarBarrasOscuras(barra);
             grilla.BackgroundColor = Superficie;
             grilla.BorderStyle = BorderStyle.None;
             grilla.GridColor = Borde;

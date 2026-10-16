@@ -8,18 +8,28 @@ namespace CooperadoraISFT94.Views.Common
         private const string Titulo = "Cooperadora ISFT 94";
 
         public static void Error(string mensaje) =>
-            MessageBox.Show(mensaje, Titulo, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            Mensaje.Mostrar(Titulo, mensaje, Mensaje.Tipo.Advertencia);
 
         /// <summary>Error de programación (no de negocio): se muestra el mensaje técnico para poder reportarlo.</summary>
-        public static void ErrorInesperado(Exception excepcion) =>
-            MessageBox.Show($"Ocurrió un error inesperado: {excepcion.Message}\n\nEl detalle quedó guardado en:\n{RegistroErrores.Archivo}",
-                            Titulo, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        public static void ErrorInesperado(Exception excepcion)
+        {
+            var texto = $"Ocurrió un error inesperado: {excepcion.Message}\n\nEl detalle quedó guardado en:\n{RegistroErrores.Archivo}";
+            try
+            {
+                Mensaje.Mostrar(Titulo, texto, Mensaje.Tipo.Error);
+            }
+            catch (Exception)
+            {
+                // Si falla la ventana con el tema, el aviso igual tiene que llegar al usuario.
+                MessageBox.Show(texto, Titulo, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
 
         public static void Info(string mensaje) =>
-            MessageBox.Show(mensaje, Titulo, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            Mensaje.Mostrar(Titulo, mensaje, Mensaje.Tipo.Info);
 
         public static bool Confirmar(string mensaje) =>
-            MessageBox.Show(mensaje, Titulo, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
+            Mensaje.Mostrar(Titulo, mensaje, Mensaje.Tipo.Pregunta) == DialogResult.Yes;
 
         /// <summary>
         /// Contenedor que ocupa todo el espacio y mantiene el contenido (de tamaño fijo) centrado a lo ancho,
@@ -53,8 +63,9 @@ namespace CooperadoraISFT94.Views.Common
             combo.SelectedIndex = combo.Items.Count == 0 ? -1 : Math.Clamp(indice, 0, combo.Items.Count - 1);
         }
 
+        /// <summary>Etiqueta de un campo. Va 3 px más arriba para no taparle el borde superior al campo de abajo.</summary>
         public static Label Etiqueta(string texto, int x, int y) =>
-            new() { Text = texto, Location = new Point(x, y), AutoSize = true };
+            new() { Text = texto, Location = new Point(x, y - 3), AutoSize = true };
 
         public static TextBox Campo(int x, int y, int ancho) =>
             new() { Location = new Point(x, y), Size = new Size(ancho, 27) };
