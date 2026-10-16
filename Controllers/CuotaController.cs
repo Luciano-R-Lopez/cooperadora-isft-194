@@ -54,10 +54,23 @@ namespace CooperadoraISFT94.Controllers
             return _cuotas.RegistrarPago(cuotaId, medioPagoId, UsuarioActualId, pagadorId);
         }
 
+        /// <summary>Cobra varias cuotas juntas en un solo ingreso y un solo recibo.</summary>
+        public ReciboPagoDto RegistrarPagos(IReadOnlyCollection<int> cuotaIds, int medioPagoId, int? pagadorId = null)
+        {
+            ExigirRol(Rol.Operador);
+            return _cuotas.RegistrarPagos(cuotaIds, medioPagoId, UsuarioActualId, pagadorId);
+        }
+
         public IReadOnlyList<CuotaPendienteDto> ObtenerPendientes(int? anio)
         {
             ExigirRol(Rol.Operador);
             return _cuotas.ObtenerPendientes(anio);
+        }
+
+        public IReadOnlyList<DeudorDto> ObtenerDeudores(DeudoresFiltroDto filtro)
+        {
+            ExigirRol(Rol.Operador);
+            return _cuotas.ObtenerDeudores(filtro);
         }
     }
 }

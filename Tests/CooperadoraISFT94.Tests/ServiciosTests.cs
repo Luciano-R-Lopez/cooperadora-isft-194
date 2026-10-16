@@ -324,3 +324,105 @@ namespace CooperadoraISFT94.Tests
         }
     }
 }
+
+namespace CooperadoraISFT94.Tests
+{
+    public class CobroMultipleYMorososTests
+    {
+        [Fact]
+        public void Varias_cuotas_del_socio_se_cobran_en_un_solo_ingreso_y_recibo()
+        {
+            var c = new Contexto();
+            c.AbrirCaja();
+            var socio = c.Socio();
+            var vieja = c.Cuota(socio, 4500m, 2025);
+            var actual = c.Cuota(socio, 5000m, 2026);
+
+            var recibo = c.CuotasServicio.RegistrarPagos(new[] { actual.Id, vieja.Id }, c.Efectivo.Id, c.Operador.Id);
+
+            Assert.True(vieja.EstaPagada);
+            Assert.True(actual.EstaPagada);
+            Assert.Single(c.Movimientos.ObtenerTodos());
+            Assert.Equal(9500m, recibo.Monto);
+            Assert.Equal(new[] { 2025, 2026 }, recibo.Cuotas.Select(l => l.Anio));
+            Assert.Equal(9500m, c.Cajas.ObtenerActiva()!.MontoTotal);
+        }
+
+        [Fact]
+        public void Sin_responsable_no_se_cobran_juntas_cuotas_de_distintos_socios_y_nada_cambia()
+        {
+            var c = new Contexto();
+            c.AbrirCaja();
+            var una = c.Cuota(c.Socio("30123456"));
+            var otra = c.Cuota(c.Socio("28456789"));
+
+            Assert.Throws<ReglaNegocioException>(() =>
+                c.CuotasServicio.RegistrarPagos(new[] { una.Id, otra.Id }, c.Efectivo.Id, c.Operador.Id));
+            Assert.Throws<ReglaNegocioException>(() =>
+                c.CuotasServicio.RegistrarPagos(Array.Empty<int>(), c.Efectivo.Id, c.Operador.Id));
+            Assert.False(una.EstaPagada);
+            Assert.Empty(c.Movimientos.ObtenerTodos());
+        }
+
+        [Fact]
+        public void El_responsable_paga_juntas_sus_cuotas_y_las_de_sus_socios_a_cargo()
+        {
+            var c = new Contexto();
+            c.AbrirCaja();
+            var responsable = c.Socio("28456789", Categoria.Responsable);
+            var hija = c.Socio("40111222", responsable: responsable);
+            var hijo = c.Socio("40111333", responsable: responsable);
+            var propia = c.Cuota(responsable);
+
+            var recibo = c.CuotasServicio.RegistrarPagos(
+                new[] { propia.Id, c.Cuota(hija).Id, c.Cuota(hijo).Id }, c.Efectivo.Id, c.Operador.Id, responsable.Id);
+
+            Assert.Equal(15000m, recibo.Monto);
+            Assert.NotNull(recibo.PagadoPor);
+            var detalles = c.Detalles.ObtenerTodos();
+            Assert.Null(detalles.Single(d => d.Cuota.Id == propia.Id).PagadaPor);
+            Assert.Equal(2, detalles.Count(d => ReferenceEquals(d.PagadaPor, responsable)));
+        }
+
+        [Fact]
+        public void Los_deudores_salen_uno_por_socio_con_sus_anios_y_las_familias_juntas()
+        {
+            var c = new Contexto();
+            var zapata = c.Socio("30000001");
+            zapata.ActualizarDatos("Ana", "Zapata", zapata.Dni, "", "", Categoria.Responsable, null, false);
+            var aCargo = c.Socio("30000002", responsable: zapata);
+            aCargo.ActualizarDatos("Bruno", "Alba", aCargo.Dni, "", "", Categoria.Socio, zapata, false);
+            var medio = c.Socio("30000003");
+            medio.ActualizarDatos("Carla", "Mena", medio.Dni, "", "", Categoria.Socio, null, false);
+
+            c.Cuota(aCargo, 4500m, 2025);
+            c.Cuota(aCargo, 5000m, 2026);
+            c.Cuota(zapata, 5000m, 2026);
+            c.Cuota(medio, 5000m, 2026);
+
+            var deudores = c.CuotasServicio.ObtenerDeudores(new DTOs.Cuotas.DeudoresFiltroDto(null, null, true));
+
+            // Mena primero; después la familia Zapata: el responsable y luego su socio a cargo (Alba).
+            Assert.Equal(new[] { "Mena", "Zapata", "Alba" }, deudores.Select(d => d.Apellido));
+            var alba = deudores.Single(d => d.Apellido == "Alba");
+            Assert.Equal(new[] { 2025, 2026 }, alba.Anios);
+            Assert.Equal(9500m, alba.Total);
+            Assert.Contains("Zapata", alba.Paga);
+
+            Assert.Single(c.CuotasServicio.ObtenerDeudores(new DTOs.Cuotas.DeudoresFiltroDto(2025, null, true)));
+            Assert.Equal(2, c.CuotasServicio.ObtenerDeudores(new DTOs.Cuotas.DeudoresFiltroDto(null, "zapata", true)).Count);
+        }
+
+        [Fact]
+        public void Los_dados_de_baja_se_pueden_ocultar()
+        {
+            var c = new Contexto();
+            var socio = c.Socio();
+            c.Cuota(socio);
+            socio.DarDeBaja(tieneSociosACargo: false);
+
+            Assert.Single(c.CuotasServicio.ObtenerDeudores(new DTOs.Cuotas.DeudoresFiltroDto(null, null, true)));
+            Assert.Empty(c.CuotasServicio.ObtenerDeudores(new DTOs.Cuotas.DeudoresFiltroDto(null, null, false)));
+        }
+    }
+}

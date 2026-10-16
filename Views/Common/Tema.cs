@@ -106,6 +106,10 @@ namespace CooperadoraISFT94.Views.Common
                 case CheckBox check:
                     check.ForeColor = Texto;
                     break;
+                case ListBox lista:
+                    lista.BackColor = Superficie;
+                    lista.ForeColor = Texto;
+                    break;
                 case Label etiqueta:
                     etiqueta.ForeColor = Texto;
                     break;

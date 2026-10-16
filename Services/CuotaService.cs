@@ -118,33 +118,61 @@ namespace CooperadoraISFT94.Services
                                  new DescripcionCambios().Campo($"Valor de la cuota {anio}", anterior, valor.Monto).ToString());
         }
 
-        public ReciboPagoDto RegistrarPago(int cuotaId, int medioPagoId, int usuarioId, int? pagadorId = null)
+        public ReciboPagoDto RegistrarPago(int cuotaId, int medioPagoId, int usuarioId, int? pagadorId = null) =>
+            RegistrarPagos(new[] { cuotaId }, medioPagoId, usuarioId, pagadorId);
+
+        public ReciboPagoDto RegistrarPagos(IReadOnlyCollection<int> cuotaIds, int medioPagoId, int usuarioId, int? pagadorId = null)
         {
-            var cuota = _cuotas.ObtenerExistente(cuotaId);
-            cuota.ValidarPagable();
+            ArgumentNullException.ThrowIfNull(cuotaIds);
+            if (cuotaIds.Count == 0)
+                throw new ReglaNegocioException("Elegí al menos una cuota para cobrar.");
+
+            var cuotas = cuotaIds.Distinct().Select(_cuotas.ObtenerExistente).OrderBy(c => c.Anio).ToList();
+            foreach (var cuota in cuotas)
+                cuota.ValidarPagable();
 
             var usuario = _usuarios.ObtenerExistente(usuarioId);
             var medio = _medios.ObtenerExistente(medioPagoId);
             medio.ExigirActivo();
             var pagador = pagadorId is int id ? _socios.ObtenerExistente(id) : null;
 
-            // Todo lo que puede fallar por los datos se construye antes de tocar la caja;
-            // el registro del ingreso (que exige caja abierta) va último, así si falla la cuota queda como estaba.
-            var ingreso = new Ingreso(usuario, _reloj(), cuota.Monto, medio, CategoriaIngreso.CuotaSocial);
-            var detalle = new DetalleIngresoCuota(ingreso, cuota, cuota.Monto, pagador);
+            // Sin responsable que pague, un recibo es de un solo socio.
+            if (pagador is null && cuotas.Select(c => c.Socio).Distinct().Count() > 1)
+                throw new ReglaNegocioException("Solo se pueden cobrar juntas cuotas del mismo socio (o las que paga un responsable).");
+
+            // Todo lo que puede fallar por los datos se construye antes de tocar la caja; el registro del ingreso
+            // (que exige caja abierta) va último, así si falla las cuotas quedan como estaban.
+            var ingreso = new Ingreso(usuario, _reloj(), cuotas.Sum(c => c.Monto), medio, CategoriaIngreso.CuotaSocial);
+
+            // El responsable puede pagar sus propias cuotas junto con las de sus socios a cargo.
+            var detalles = cuotas
+                .Select(c => new DetalleIngresoCuota(ingreso, c, c.Monto, ReferenceEquals(c.Socio, pagador) ? null : pagador))
+                .ToList();
 
             _registrador.Registrar(ingreso);
-            _detalles.Agregar(detalle);
 
-            cuota.CambiarEstado(EstadoCuota.Pagada);
-            _cuotas.Actualizar(cuota);
+            foreach (var detalle in detalles)
+            {
+                _detalles.Agregar(detalle);
 
-            var quienPago = pagador is null ? string.Empty : $" (pagó su responsable {pagador.ObtenerDescripcion()})";
-            _auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(Cuota), cuota.Id,
-                                 $"Estado: Pendiente → Pagada{quienPago}");
+                var cuota = detalle.Cuota;
+                cuota.CambiarEstado(EstadoCuota.Pagada);
+                _cuotas.Actualizar(cuota);
 
-            return new ReciboPagoDto(ingreso.Id, ingreso.Fecha, cuota.Id, cuota.Socio.ObtenerDescripcion(), cuota.Anio,
-                                     cuota.Monto, medio.Nombre, pagador?.ObtenerDescripcion(), usuario.NombreCompleto);
+                var quienPago = detalle.PagadaPor is Socio responsable
+                    ? $" (pagó su responsable {responsable.ObtenerDescripcion()})"
+                    : string.Empty;
+                _auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(Cuota), cuota.Id,
+                                     $"Estado: Pendiente → Pagada{quienPago}");
+            }
+
+            var lineas = cuotas
+                .Select(c => new LineaReciboDto(c.Id, c.Socio.ObtenerDescripcion(), c.Anio, c.Monto))
+                .ToList();
+            var pagoResponsable = detalles.Any(d => d.PagadaPor is not null);
+
+            return new ReciboPagoDto(ingreso.Id, ingreso.Fecha, lineas, medio.Nombre,
+                                     pagoResponsable ? pagador!.ObtenerDescripcion() : null, usuario.NombreCompleto);
         }
 
         public IReadOnlyList<CuotaPendienteDto> ObtenerPendientes(int? anio)
@@ -158,6 +186,35 @@ namespace CooperadoraISFT94.Services
                               c.Socio.Email, c.Socio.Responsable?.ObtenerDescripcion() ?? "-", c.Socio.Activo,
                               c.Anio, c.Monto))
                           .ToList();
+        }
+
+        public IReadOnlyList<DeudorDto> ObtenerDeudores(DeudoresFiltroDto filtro)
+        {
+            ArgumentNullException.ThrowIfNull(filtro);
+            if (filtro.Anio is int a && !Common.Validaciones.EsAnioValido(a))
+                throw new ReglaNegocioException("El año no es válido.");
+
+            var texto = filtro.Texto?.Trim() ?? string.Empty;
+
+            return _cuotas.ObtenerPendientes(filtro.Anio)
+                .Where(c => filtro.IncluirDadosDeBaja || c.Socio.Activo)
+                .GroupBy(c => c.Socio)
+                .Where(g => texto.Length == 0
+                            || g.Key.Dni.Contains(texto, StringComparison.OrdinalIgnoreCase)
+                            || g.Key.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase)
+                            || $"{g.Key.Apellido} {g.Key.Nombre}".Contains(texto, StringComparison.OrdinalIgnoreCase)
+                            || (g.Key.Responsable?.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase) ?? false))
+                // Las familias juntas: primero se ordena por quien paga y después por socio.
+                .OrderBy(g => (g.Key.Responsable ?? g.Key).Apellido)
+                .ThenBy(g => (g.Key.Responsable ?? g.Key).Nombre)
+                .ThenBy(g => g.Key.Responsable is null ? 0 : 1)
+                .ThenBy(g => g.Key.Apellido)
+                .ThenBy(g => g.Key.Nombre)
+                .Select(g => new DeudorDto(
+                    g.Key.Id, g.Key.Apellido, g.Key.Nombre, g.Key.Dni, g.Key.Telefono, g.Key.Email,
+                    g.Key.Responsable?.Id, g.Key.Responsable?.ObtenerDescripcion(), g.Key.Activo,
+                    g.Select(c => c.Anio).OrderBy(x => x).ToList(), g.Sum(c => c.Monto)))
+                .ToList();
         }
     }
 }

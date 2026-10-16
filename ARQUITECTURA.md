@@ -60,6 +60,11 @@ Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
 - **El responsable paga por un socio a cargo:** desde su ficha elige el socio (si tiene más de uno), la cuota pendiente
   y el medio. También se puede marcar al cobrar desde la ficha del socio. Queda en `DetalleIngresoCuota.PagadaPor`,
   que solo acepta al responsable de ese socio.
+- **Cobro de varias cuotas juntas:** `RegistrarPagos` registra un solo ingreso por el total con un
+  `DetalleIngresoCuota` por cuota. Sin responsable, las cuotas tienen que ser del mismo socio; con responsable, pueden
+  ser suyas y de sus socios a cargo (en las propias no se marca `PagadaPor`).
+- **Morosos:** `ObtenerDeudores` agrupa las cuotas pendientes por socio y ordena por quien paga, así cada familia
+  queda junta.
 - **Valor de la cuota:** `ValorCuota` guarda el valor de cada año. Se propone al generar cuotas (si no hay, el de la
   última cuota del año) y el operador lo puede cambiar. "Generar cuotas para todos" se la crea a cada socio activo
   que no la tenga.

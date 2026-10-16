@@ -67,7 +67,10 @@ dotnet test CooperadoraISFT94.slnx
 ### Cuotas
 - **Valor de la cuota por año**, que se propone al generar cuotas (el operador lo puede cambiar).
 - **Generar la cuota del año para todos los socios activos** de una vez (saltea a los que ya la tienen).
-- **Listado de morosos** (cuotas pendientes, por año o todas) con el total adeudado.
+- **Lista de morosos:** un socio por fila con los años que debe, el total y quién paga (él o su responsable),
+  con las familias juntas. Se filtra por año, nombre o DNI y se pueden ocultar los dados de baja. Desde la lista se
+  **cobran una o varias cuotas en un solo pago** (un ingreso y un recibo con el detalle), se abre la **ficha** del
+  socio y se **copian los emails** (el del responsable si es quien paga) para mandar un recordatorio.
 - **El responsable paga la cuota de un socio a cargo:** desde su ficha elige el socio (si tiene más de uno),
   la cuota pendiente y el medio de pago. También se puede marcar "Paga su responsable" al cobrar desde la ficha
   del socio. Queda registrado quién pagó (en el movimiento, el recibo y la auditoría).
@@ -105,7 +108,7 @@ dotnet test CooperadoraISFT94.slnx
 - Campo de fecha propio con calendario desplegable, y avisos propios en lugar de los de Windows.
 
 ### Tests
-- Proyecto `Tests/CooperadoraISFT94.Tests` (xUnit) con **54 tests**: reglas del dominio (caja, movimientos,
+- Proyecto `Tests/CooperadoraISFT94.Tests` (xUnit) con **59 tests**: reglas del dominio (caja, movimientos,
   socios, cuotas, contraseñas) y servicios (DNI repetido, generación de cuotas, pagos, pago del responsable,
   anulaciones, resumen de caja, bloqueo de login, catálogos y filtros de auditoría).
 - Los servicios reciben sus repositorios y un reloj por constructor, así cada test usa datos propios y una hora fija.

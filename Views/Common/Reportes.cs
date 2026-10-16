@@ -20,15 +20,17 @@ namespace CooperadoraISFT94.Views.Common
                 .Subtitulo($"Recibo de pago de cuota social N° {recibo.Numero:D6}")
                 .Espacio()
                 .Dato("Fecha", recibo.Fecha.ToString("dd/MM/yyyy HH:mm"))
-                .Dato("Socio", recibo.Socio)
-                .Dato("Concepto", $"Cuota social {recibo.Anio}")
-                .Dato("Medio de pago", recibo.MedioPago)
-                .Dato("Importe", recibo.Monto.ToString("C2"));
+                .Dato("Socio", recibo.Socio);
 
             if (recibo.PagadoPor is not null)
                 documento.Dato("Pagó", $"{recibo.PagadoPor} (responsable)");
 
-            documento.Dato("Atendió", recibo.Usuario)
+            documento.Dato("Medio de pago", recibo.MedioPago)
+                     .Dato("Atendió", recibo.Usuario)
+                     .Espacio()
+                     .Tabla(new[] { "Concepto", "Socio", "Importe" }, new[] { 2f, 4f, 1.6f },
+                            recibo.Cuotas.Select(c => new[] { $"Cuota social {c.Anio}", c.Socio, c.Monto.ToString("C2") }))
+                     .Dato("Total", recibo.Monto.ToString("C2"))
                      .Espacio()
                      .Texto("Recibimos el importe indicado en concepto de cuota social.");
 
