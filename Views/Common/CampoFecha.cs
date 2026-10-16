@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Globalization;
 
 namespace CooperadoraISFT94.Views.Common
@@ -49,6 +50,7 @@ namespace CooperadoraISFT94.Views.Common
             Controls.Add(_boton);
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public DateTime Value
         {
             get => _valor;
