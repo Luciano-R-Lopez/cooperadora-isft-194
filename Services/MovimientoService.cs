@@ -49,11 +49,14 @@ namespace CooperadoraISFT94.Services
             if (filtro.MedioPagoId is int medioPagoId)
                 movimientos = movimientos.Where(m => m.MedioPago.Id == medioPagoId);
 
-            // Cuotas que pagó cada ingreso, indexadas por id de movimiento (los egresos simplemente no tienen).
+            // Cuotas que pagó cada ingreso, indexadas por id de ingreso. Un ingreso y un egreso pueden compartir id
+            // (son tablas distintas en la base), por eso solo se buscan detalles para los ingresos.
             var cuotasPorMovimiento = _detalles.ObtenerTodos().ToLookup(d => d.Ingreso.Id);
 
             IEnumerable<MovimientoDto> resultado = movimientos.Select(m => new MovimientoDto(
-                m.Tipo, m.Fecha, m.Clasificacion, DescribirDetalle(cuotasPorMovimiento[m.Id]),
+                m.Tipo, m.Fecha, m.Clasificacion, DescribirDetalle(m.Tipo == TipoMovimiento.Ingreso
+                    ? cuotasPorMovimiento[m.Id]
+                    : Enumerable.Empty<DetalleIngresoCuota>()),
                 m.MedioPago.Nombre, m.Monto, m.Usuario.NombreCompleto));
 
             if (!string.IsNullOrWhiteSpace(filtro.Texto))
