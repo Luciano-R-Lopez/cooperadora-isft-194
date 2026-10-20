@@ -92,7 +92,7 @@ dotnet test CooperadoraISFT94.slnx
 ### Seguridad y soporte
 - **Mi contraseña:** cualquier usuario puede cambiar la suya (pide la actual y la nueva dos veces).
 - **Bloqueo del login** por 5 minutos después de 5 intentos fallidos.
-- **Registro de errores** inesperados en `%LOCALAPPDATA%\CooperadoraISFT94\errores.log`.
+- **Registro de errores** inesperados en `%LOCALAPPDATA%\CooperadoraISFT194\errores.log`.
 
 ### Reportes y exportación
 - Recibo de cuota y resumen de caja con la vista previa de impresión de Windows

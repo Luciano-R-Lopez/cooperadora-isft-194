@@ -11,7 +11,7 @@ namespace CooperadoraISFT94.Views.Common
     /// </summary>
     public static class Reportes
     {
-        private const string Institucion = "Cooperadora ISFT 94";
+        private const string Institucion = "Cooperadora ISFT 194";
 
         public static void ImprimirRecibo(ReciboPagoDto recibo)
         {

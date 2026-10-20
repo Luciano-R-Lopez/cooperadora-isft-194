@@ -28,7 +28,7 @@ namespace CooperadoraISFT94.Views.Auth
 
         private void ConstruirInterfaz()
         {
-            Text = "Cooperadora ISFT 94 - Iniciar sesión";
+            Text = "Cooperadora ISFT 194 - Iniciar sesión";
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(800, 500);
             MinimumSize = new Size(420, 340);
@@ -44,7 +44,7 @@ namespace CooperadoraISFT94.Views.Auth
 
             var titulo = Tema.ConColoresPropios(new Label
             {
-                Text = "Cooperadora ISFT 94",
+                Text = "Cooperadora ISFT 194",
                 ForeColor = Tema.Texto,
                 Font = new Font(Font.FontFamily, 14f, FontStyle.Bold),
                 AutoSize = false,

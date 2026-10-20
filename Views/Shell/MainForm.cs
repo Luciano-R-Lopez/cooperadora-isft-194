@@ -33,7 +33,7 @@ namespace CooperadoraISFT94.Views.Shell
 
         private void ConstruirInterfaz()
         {
-            Text = "Cooperadora ISFT 94";
+            Text = "Cooperadora ISFT 194";
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(1000, 650);
             MinimumSize = new Size(800, 500);

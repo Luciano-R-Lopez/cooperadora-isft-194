@@ -5,7 +5,7 @@ namespace CooperadoraISFT94.Views.Common
     /// <summary>Utilidades de interfaz compartidas por todas las vistas.</summary>
     public static class Ui
     {
-        private const string Titulo = "Cooperadora ISFT 94";
+        private const string Titulo = "Cooperadora ISFT 194";
 
         public static void Error(string mensaje) =>
             Mensaje.Mostrar(Titulo, mensaje, Mensaje.Tipo.Advertencia);

@@ -1,4 +1,4 @@
-# Arquitectura de Cooperadora ISFT 94
+# Arquitectura de Cooperadora ISFT 194
 
 Misma lógica que el proyecto Eventos: cada capa hace solo su parte.
 
@@ -79,7 +79,7 @@ Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
   revelar qué usuarios hay). Cada usuario puede cambiar su propia contraseña ("Mi contraseña").
 - **Reportes:** `Views/Common/Reportes.cs` imprime el recibo de cuota y el resumen de caja (vista previa de Windows;
   "Microsoft Print to PDF" para PDF). `ExportarCsv` exporta cualquier grilla tal como se ve (separador `;` para Excel).
-- **Errores inesperados:** se muestran y quedan guardados en `%LOCALAPPDATA%\CooperadoraISFT94\errores.log`
+- **Errores inesperados:** se muestran y quedan guardados en `%LOCALAPPDATA%\CooperadoraISFT194\errores.log`
   (`RegistroErrores`).
 - **Tema visual (oscuro):** `Views/Common/Tema.cs` tiene la paleta y estila los controles; cada ventana llama a `Tema.Aplicar(this)`.
   Los colores van siempre por `Tema` (nada de `Color.X` sueltos). Las pestañas usan `Pestanias` (el `TabControl` nativo

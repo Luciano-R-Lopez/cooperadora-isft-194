@@ -6,10 +6,10 @@ namespace CooperadoraISFT94.Common
     /// </summary>
     public static class RegistroErrores
     {
-        /// <summary>%LOCALAPPDATA%\CooperadoraISFT94\errores.log</summary>
+        /// <summary>%LOCALAPPDATA%\CooperadoraISFT194\errores.log</summary>
         public static string Archivo { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "CooperadoraISFT94", "errores.log");
+            "CooperadoraISFT194", "errores.log");
 
         private static readonly object Candado = new();
 
