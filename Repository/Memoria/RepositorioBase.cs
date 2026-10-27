@@ -28,6 +28,8 @@ namespace CooperadoraISFT94.Repository.Memoria
                 throw new InvalidOperationException("Ya hay un elemento guardado con el id " + elemento.Id + ".");
             }
             elementos.Add(elemento);
+            // Los datos que se cargan de la base ya traen su id: los nuevos siguen después del mayor.
+            proximoId = Math.Max(proximoId, elemento.Id + 1);
         }
 
         public void Actualizar(T elemento)

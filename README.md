@@ -1,20 +1,28 @@
 # Cooperadora ISFT 194
 
 Aplicación de escritorio (WinForms, .NET 10) para la cooperadora del ISFT 194: socios, cuotas, ingresos,
-egresos, caja, usuarios y auditoría. Por ahora los datos viven en memoria (se pierden al cerrar); la idea
-es conectarla más adelante a MySQL a través de PHP.
+egresos, caja, usuarios y auditoría. Los datos se guardan en MySQL (la base `cooperadora` de XAMPP).
 
 La organización del código (capas, reglas y decisiones de diseño) está explicada en [ARQUITECTURA.md](ARQUITECTURA.md).
 
 ## Cómo correrla
 
-Requiere el SDK de .NET 10 en Windows.
+Requiere el SDK de .NET 10 en Windows y XAMPP:
+
+1. En el panel de XAMPP, prender **MySQL**.
+2. La primera vez, crear la base `cooperadora` en phpMyAdmin e importar
+   [BaseDeDatos/cooperadora.sql](BaseDeDatos/cooperadora.sql) (los pasos están en
+   [BaseDeDatos/README.md](BaseDeDatos/README.md)).
+3. Abrir la aplicación.
+
+Para probar sin XAMPP, poner `UsarBaseDeDatos = false` en `Common/Configuracion.cs`: los datos quedan en
+memoria (se pierden al cerrar) y en modo Debug se cargan los datos de ejemplo.
 
 ```bash
 dotnet run --project CooperadoraISFT94.csproj
 ```
 
-Usuarios de prueba (se cargan en `Datos/DatosIniciales.cs`):
+Usuarios de prueba (los crea el script de la base; sin base, `Datos/DatosIniciales.cs`):
 
 | Usuario | Contraseña | Rol |
 |---|---|---|
@@ -25,7 +33,7 @@ Usuarios de prueba (se cargan en `Datos/DatosIniciales.cs`):
 
 ### Datos de ejemplo
 
-Al iniciar en modo **Debug**, `Datos/DatosDeEjemplo.cs` simula el uso de la cooperadora desde marzo de 2024 hasta hoy,
+Sin base de datos y en modo **Debug**, `Datos/DatosDeEjemplo.cs` simula el uso de la cooperadora desde marzo de 2024 hasta hoy,
 usando los servicios reales (así todo cumple las reglas y queda en la auditoría):
 
 - **38 socios**: 7 responsables con 1 a 3 socios a cargo, 4 que se inscriben a mitad de 2025 y 3 dados de baja.
@@ -50,11 +58,11 @@ dotnet test CooperadoraISFT94.slnx
 
 El código se reorganizó para seguir la misma lógica que el proyecto Eventos (detalle en [ARQUITECTURA.md](ARQUITECTURA.md)):
 
-- **Carpetas y capas iguales:** `Domain`, `Repository` (con `Memoria`), `Service`, `Controller`, `Dto`, `Forms`
+- **Carpetas y capas iguales:** `Domain`, `Repository` (con `Memoria` y `MySql`), `Service`, `Controller`, `Dto`, `Forms`
   (con `Utils`), `Common` (con `Enums` y `Exceptions`) y `Datos`.
 - **Interfaces:** `IEntidad` (todas las entidades), `IRepository<T>` (todos los repositorios, con `ObtenerProximoId`)
   e `IVuelveDeSubpantalla` (pantallas que se actualizan al volver de otra). `Repository/Repositorios.cs` es el único
-  lugar donde se eligen los repositorios: para conectar una base de datos se cambian esas líneas.
+  lugar donde se eligen los repositorios (en memoria, o en memoria y guardados en MySQL).
 - **Propiedades que se validan solas:** cada entidad valida sus datos en los setters y en el constructor, con
   mensajes claros ("El DNI debe tener 7 u 8 números, sin puntos.").
 - **Servicios y controladores** como en Eventos: el servicio recibe los repositorios por constructor y mapea a DTOs;
@@ -152,4 +160,5 @@ El código se reorganizó para seguir la misma lógica que el proyecto Eventos (
 
 ## Pendiente
 
-- Persistencia en MySQL (a través de PHP). Hoy todo se guarda en memoria.
+- Usar la aplicación en varias computadoras a la vez: hoy cada una lee la base al iniciar y guarda sus
+  cambios, pero no ve los de las otras hasta reiniciarse.

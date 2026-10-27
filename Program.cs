@@ -1,8 +1,10 @@
 using System.Globalization;
 using CooperadoraISFT94.Common;
+using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Datos;
 using CooperadoraISFT94.Forms;
 using CooperadoraISFT94.Forms.Utils;
+using CooperadoraISFT94.Repository.MySql;
 
 namespace CooperadoraISFT94
 {
@@ -32,11 +34,10 @@ namespace CooperadoraISFT94
                 }
             };
 
-            // Catálogos y usuarios mientras no hay base de datos; en modo Debug, además, datos de ejemplo.
-            DatosIniciales.Cargar();
-#if DEBUG
-            DatosDeEjemplo.Cargar();
-#endif
+            if (!CargarDatos())
+            {
+                return;
+            }
 
             bool volverAlLogin;
             do
@@ -55,6 +56,31 @@ namespace CooperadoraISFT94
                 }
             }
             while (volverAlLogin);
+        }
+
+        // Con base de datos se lee todo de MySQL (los catálogos y usuarios iniciales los trae el script).
+        // Sin base: catálogos y usuarios en memoria y, en modo Debug, además datos de ejemplo.
+        private static bool CargarDatos()
+        {
+            if (!Configuracion.UsarBaseDeDatos)
+            {
+                DatosIniciales.Cargar();
+#if DEBUG
+                DatosDeEjemplo.Cargar();
+#endif
+                return true;
+            }
+
+            try
+            {
+                CargadorMySql.Cargar();
+                return true;
+            }
+            catch (NegocioException ex)
+            {
+                Mensajes.Advertencia(ex.Message);
+                return false;
+            }
         }
     }
 }

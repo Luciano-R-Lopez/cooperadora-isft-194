@@ -17,6 +17,14 @@ namespace CooperadoraISFT94.Domain
             PagadaPor = ExigirPagador(pagadaPor);
         }
 
+        // Para leer un pago ya guardado: quien lo pagó pudo dejar de ser el responsable del socio después.
+        internal static DetalleIngresoCuota Restaurar(int id, Ingreso ingreso, Cuota cuota, decimal monto, Socio? pagadaPor)
+        {
+            DetalleIngresoCuota detalle = new DetalleIngresoCuota(id, ingreso, cuota, monto, null);
+            detalle.PagadaPor = pagadaPor;
+            return detalle;
+        }
+
         public int Id { get; private set; }
 
         public Ingreso Ingreso { get; private set; }

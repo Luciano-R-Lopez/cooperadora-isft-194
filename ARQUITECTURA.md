@@ -9,7 +9,8 @@ mismas interfaces, la misma forma de validar, de avisar errores y de armar las p
 |---|---|
 | `Domain` | Entidades y reglas de negocio (`Socio`, `Cuota`, `Caja`, `Movimiento`, `Ingreso`, `Egreso`, `Usuario`...). Todas implementan `IEntidad`. Cada entidad valida sus datos en el constructor y en los setters de sus propiedades. |
 | `Repository` | Interfaz `IRepository<T>`, común a todas las entidades: `ObtenerProximoId`, `Agregar`, `Actualizar`, `ObtenerTodos`, `ObtenerExistente`, `Eliminar`. `Repositorios.cs` es el único lugar donde se elige la implementación. |
-| `Repository/Memoria` | Implementación en memoria (la que usa la app hoy): `RepositorioBase<T>` y un repositorio por entidad. Para pasar a una base de datos se agrega otra carpeta (por ejemplo `Repository/MySql`) y se cambian las líneas de `Repositorios.cs`; los servicios no cambian. |
+| `Repository/Memoria` | Implementación en memoria: `RepositorioBase<T>` y un repositorio por entidad. Es donde se consultan los datos, con o sin base. |
+| `Repository/MySql` | Base MySQL (`Configuracion.UsarBaseDeDatos`). `CargadorMySql` lee la base al iniciar y llena los repositorios en memoria; `RepositorioMySql<T>` envuelve a cada uno y escribe cada cambio en la base antes de aplicarlo en memoria, con la clase de `Persistencias` de esa entidad (`IPersistencia<T>`). Los servicios no cambian. Detalle en `BaseDeDatos/README.md`. |
 | `Service` | Casos de uso. Cada servicio tiene un constructor sin parámetros (toma los repositorios de `Repositorios`) y otro que los recibe, para los tests. Mapean entidades a DTOs (`MapearADto`). |
 | `Controller` | Punto de entrada que usan las pantallas: exige el rol (`BaseController.ExigirRol`) y delega en el servicio. |
 | `Dto` | Datos que viajan entre las pantallas y los servicios (`SocioDTO`, `CuotaDTO`, `MovimientoDTO`...): clases con propiedades. |
