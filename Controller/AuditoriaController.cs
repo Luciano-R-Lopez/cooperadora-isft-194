@@ -1,27 +1,22 @@
-using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Service;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Controller
 {
-    /// <summary>Consulta del registro de auditoría. Solo para administradores.</summary>
     public class AuditoriaController : BaseController
     {
-        private readonly IAuditoriaService _auditoria;
+        private readonly AuditoriaService servicio;
 
-        public AuditoriaController() : this(AuditoriaService.Instancia, SesionActual.Instancia) { }
-
-        public AuditoriaController(IAuditoriaService auditoria, SesionActual sesion) : base(sesion)
+        public AuditoriaController()
         {
-            _auditoria = auditoria;
+            servicio = new AuditoriaService();
         }
 
-        public IReadOnlyList<AuditoriaDto> Obtener(AuditoriaFiltroDto filtro)
+        public List<AuditoriaDTO> Obtener(AuditoriaFiltroDTO filtro)
         {
             ExigirRol(Rol.Administrador);
-            return _auditoria.Obtener(filtro);
+            return servicio.Obtener(filtro);
         }
     }
 }

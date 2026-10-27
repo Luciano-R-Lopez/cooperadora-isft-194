@@ -3,42 +3,40 @@ using CooperadoraISFT94.Common.Exceptions;
 
 namespace CooperadoraISFT94.Domain
 {
-    /// <summary>
-    /// Opción configurable (medio de pago, motivo de egreso): son entidades y no enums para poder agregarlas,
-    /// renombrarlas o desactivarlas desde la aplicación sin tocar el código.
-    /// </summary>
-    public abstract class ItemCatalogo : Entidad
+    // Opción que el administrador mantiene desde la aplicación (medio de pago, motivo o grupo de egreso).
+    public abstract class ItemCatalogo : IEntidad
     {
         public const int LargoMaximoNombre = 50;
 
-        private readonly string _descripcion;
+        private readonly string descripcion;
+        private string nombre = string.Empty;
 
-        /// <param name="descripcion">Cómo se nombra el ítem en los mensajes (por ejemplo, "medio de pago").</param>
-        protected ItemCatalogo(string nombre, string descripcion)
+        // descripcion: cómo se nombra el ítem en los mensajes (por ejemplo, "medio de pago").
+        protected ItemCatalogo(int id, string nombre, string descripcion)
         {
-            _descripcion = descripcion;
-            Nombre = ValidarNombre(nombre);
+            this.descripcion = descripcion;
+            Id = id;
+            Nombre = nombre;
             Activo = true;
         }
 
-        public string Nombre { get; private set; }
+        public int Id { get; private set; }
 
-        /// <summary>Los inactivos no se ofrecen para movimientos nuevos; los ya registrados no cambian.</summary>
-        public bool Activo { get; private set; }
+        public string Nombre
+        {
+            get { return nombre; }
+            set { nombre = Validaciones.ExigirTexto(value, "nombre del " + descripcion, LargoMaximoNombre); }
+        }
 
-        public void Renombrar(string nombre) => Nombre = ValidarNombre(nombre);
-
-        public void Activar() => Activo = true;
-
-        public void Desactivar() => Activo = false;
+        // Los inactivos no se ofrecen para movimientos nuevos; los ya registrados no cambian.
+        public bool Activo { get; set; }
 
         public void ExigirActivo()
         {
             if (!Activo)
-                throw new ReglaNegocioException($"El {_descripcion} \"{Nombre}\" está desactivado.");
+            {
+                throw new NegocioException("El " + descripcion + " \"" + Nombre + "\" está desactivado.");
+            }
         }
-
-        private string ValidarNombre(string nombre) =>
-            Validaciones.ExigirTexto(nombre, $"nombre del {_descripcion}", LargoMaximoNombre);
     }
 }

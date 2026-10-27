@@ -1,10 +1,9 @@
 namespace CooperadoraISFT94.Common.Exceptions
 {
-    /// <summary>El usuario logueado no tiene el rol necesario para la acción pedida.</summary>
+    // El usuario que inició sesión no tiene el rol que pide la acción.
     public class AccesoDenegadoException : NegocioException
     {
-        public AccesoDenegadoException()
-            : base("No tenés permisos para realizar esta acción.")
+        public AccesoDenegadoException() : base("No tiene permisos para realizar esta acción.")
         {
         }
     }

@@ -1,15 +1,19 @@
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository;
 
 namespace CooperadoraISFT94.Repository.Memoria
 {
-    public sealed class CajaRepository : InMemoryRepository<Caja>, ICajaRepository
+    public class CajaRepository : RepositorioBase<Caja>
     {
-        private static readonly Lazy<CajaRepository> _instancia = new(() => new CajaRepository());
-        public static CajaRepository Instancia => _instancia.Value;
+        private static readonly CajaRepository instancia = new CajaRepository();
 
-        internal CajaRepository() : base("La caja seleccionada no existe.") { }
+        // Interno (y no privado) solo para que los tests puedan trabajar con un repositorio vacío.
+        internal CajaRepository() : base("La caja seleccionada no existe.")
+        {
+        }
 
-        public Caja? ObtenerActiva() => Items.FirstOrDefault(c => c.EstaAbierta);
+        public static CajaRepository ObtenerInstancia()
+        {
+            return instancia;
+        }
     }
 }

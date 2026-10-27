@@ -1,116 +1,174 @@
-using CooperadoraISFT94.Common.Exceptions;
-using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository.Memoria;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Repository;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Service
 {
-    public sealed class SocioService : ISocioService
+    public class SocioService
     {
-        private static readonly Lazy<SocioService> _instancia = new(() =>
-            new SocioService(SocioRepository.Instancia, AuditoriaService.Instancia));
-        public static SocioService Instancia => _instancia.Value;
+        private readonly IRepository<Socio> repositorio;
+        private readonly AuditoriaService auditoria;
 
-        private readonly ISocioRepository _socios;
-        private readonly IAuditoriaService _auditoria;
-
-        internal SocioService(ISocioRepository socios, IAuditoriaService auditoria)
+        public SocioService()
+            : this(Repositorios.Socios, new AuditoriaService())
         {
-            _socios = socios;
-            _auditoria = auditoria;
         }
 
-        public SocioDto Registrar(SocioCrearDto dto, int usuarioId)
+        public SocioService(IRepository<Socio> repositorio, AuditoriaService auditoria)
         {
-            ArgumentNullException.ThrowIfNull(dto);
-
-            // El propio Socio valida y normaliza sus datos; acá solo se controla lo que depende de otros socios.
-            var socio = new Socio(dto.Nombre, dto.Apellido, dto.Dni, dto.Telefono, dto.Email, dto.Categoria);
-            ExigirDniLibre(socio.Dni, socioId: null);
-
-            // El propio Socio valida que el elegido sea un responsable.
-            if (dto.ResponsableId is int responsableId)
-                socio.AsignarResponsable(_socios.ObtenerExistente(responsableId));
-
-            _socios.Agregar(socio);
-            _auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(Socio), socio.Id, socio.ObtenerDescripcion());
-
-            return SocioMapper.ADto(socio);
+            this.repositorio = repositorio;
+            this.auditoria = auditoria;
         }
 
-        public SocioDto Editar(SocioEditarDto dto, int usuarioId)
+        // Crea el socio si dto.Id es 0; si no, lo edita. Devuelve el id del socio guardado.
+        public int Guardar(SocioDTO dto, int usuarioId)
         {
-            ArgumentNullException.ThrowIfNull(dto);
-
-            var socio = _socios.ObtenerExistente(dto.Id);
-            ExigirDniLibre((dto.Dni ?? string.Empty).Trim(), socio.Id);
-            var responsable = dto.ResponsableId is int responsableId ? _socios.ObtenerExistente(responsableId) : null;
-
-            var cambios = new DescripcionCambios();
-            var anterior = SocioMapper.ADto(socio);
-
-            // El Socio valida todo junto (incluida la categoría frente a sus socios a cargo) antes de modificar.
-            socio.ActualizarDatos(dto.Nombre, dto.Apellido, dto.Dni ?? string.Empty, dto.Telefono, dto.Email,
-                                  dto.Categoria, responsable, TieneSociosACargo(socio));
-            _socios.Actualizar(socio);
-
-            var nuevo = SocioMapper.ADto(socio);
-            cambios.Campo("Nombre", anterior.Nombre, nuevo.Nombre)
-                   .Campo("Apellido", anterior.Apellido, nuevo.Apellido)
-                   .Campo("DNI", anterior.Dni, nuevo.Dni)
-                   .Campo("Teléfono", anterior.Telefono, nuevo.Telefono)
-                   .Campo("Email", anterior.Email, nuevo.Email)
-                   .Campo("Categoría", anterior.Categoria, nuevo.Categoria)
-                   .Campo("Responsable", anterior.Responsable, nuevo.Responsable);
-            _auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(Socio), socio.Id, cambios.ToString());
-
-            return nuevo;
+            if (dto == null)
+            {
+                throw new ArgumentException("Los datos del socio son obligatorios.");
+            }
+            return dto.Id == 0 ? Crear(dto, usuarioId) : Editar(dto, usuarioId);
         }
 
-        public SocioDto CambiarEstado(int socioId, bool activo, int usuarioId)
+        private int Crear(SocioDTO dto, int usuarioId)
         {
-            var socio = _socios.ObtenerExistente(socioId);
+            Socio nuevo = new Socio(repositorio.ObtenerProximoId(), dto.Nombre, dto.Apellido, dto.Dni, dto.Telefono,
+                dto.Email, dto.Categoria);
+            ExigirDniLibre(nuevo.Dni, 0);
+            nuevo.AsignarResponsable(BuscarResponsable(dto.ResponsableId));
 
+            repositorio.Agregar(nuevo);
+            auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(Socio), nuevo.Id, nuevo.ObtenerDescripcion());
+            return nuevo.Id;
+        }
+
+        private int Editar(SocioDTO dto, int usuarioId)
+        {
+            Socio socio = repositorio.ObtenerExistente(dto.Id);
+
+            // Se validan todos los datos con un socio aparte antes de tocar el guardado.
+            Socio validado = new Socio(socio.Id, dto.Nombre, dto.Apellido, dto.Dni, dto.Telefono, dto.Email, dto.Categoria);
+            Socio? responsable = BuscarResponsable(dto.ResponsableId);
+            validado.AsignarResponsable(responsable);
+            ExigirDniLibre(validado.Dni, socio.Id);
+            if (TieneSociosACargo(socio) && !validado.EsResponsable)
+            {
+                throw new NegocioException("El socio tiene socios a cargo: reasígnelos antes de quitarle la categoría Responsable.");
+            }
+
+            SocioDTO anterior = MapearADto(socio);
+            socio.Nombre = validado.Nombre;
+            socio.Apellido = validado.Apellido;
+            socio.Dni = validado.Dni;
+            socio.Telefono = validado.Telefono;
+            socio.Email = validado.Email;
+            socio.Categoria = validado.Categoria;
+            socio.AsignarResponsable(responsable);
+            repositorio.Actualizar(socio);
+
+            SocioDTO nuevo = MapearADto(socio);
+            DescripcionCambios cambios = new DescripcionCambios()
+                .Campo("Nombre", anterior.Nombre, nuevo.Nombre)
+                .Campo("Apellido", anterior.Apellido, nuevo.Apellido)
+                .Campo("DNI", anterior.Dni, nuevo.Dni)
+                .Campo("Teléfono", anterior.Telefono, nuevo.Telefono)
+                .Campo("Email", anterior.Email, nuevo.Email)
+                .Campo("Categoría", anterior.Categoria, nuevo.Categoria)
+                .Campo("Responsable", anterior.Responsable, nuevo.Responsable);
+            auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(Socio), socio.Id, cambios.ToString());
+            return socio.Id;
+        }
+
+        // Dar de baja es la baja lógica: el socio conserva sus cuotas y pagos.
+        public SocioDTO CambiarEstado(int socioId, bool activo, int usuarioId)
+        {
+            Socio socio = repositorio.ObtenerExistente(socioId);
             if (activo)
+            {
                 socio.Reactivar();
+            }
             else
-                socio.DarDeBaja(TieneSociosACargo(socio));
+            {
+                if (TieneSociosACargo(socio))
+                {
+                    throw new NegocioException("El socio tiene socios a cargo: reasígnelos antes de darlo de baja.");
+                }
+                socio.DarDeBaja();
+            }
+            repositorio.Actualizar(socio);
 
-            _socios.Actualizar(socio);
-
-            // Dar de baja es la baja lógica del socio; reactivarlo es una modificación.
-            var accion = activo ? AccionAuditoria.Modificacion : AccionAuditoria.Baja;
-            _auditoria.Registrar(usuarioId, accion, nameof(Socio), socio.Id, activo ? "Reactivado" : "Dado de baja");
-
-            return SocioMapper.ADto(socio);
+            auditoria.Registrar(usuarioId, activo ? AccionAuditoria.Modificacion : AccionAuditoria.Baja, nameof(Socio),
+                socio.Id, activo ? "Reactivado" : "Dado de baja");
+            return MapearADto(socio);
         }
 
-        public SocioDto ObtenerPorId(int id) =>
-            SocioMapper.ADto(_socios.ObtenerExistente(id));
-
-        public IReadOnlyList<SocioDto> Buscar(string? filtro) =>
-            _socios.Buscar(filtro).Select(SocioMapper.ADto).ToList();
-
-        public IReadOnlyList<SocioDto> ObtenerResponsables() =>
-            _socios.ObtenerResponsables().Select(SocioMapper.ADto).ToList();
-
-        public IReadOnlyList<SocioDto> ObtenerACargo(int responsableId)
+        public List<SocioDTO> ObtenerTodos()
         {
-            var responsable = _socios.ObtenerExistente(responsableId);
-            return _socios.ObtenerACargo(responsable).Select(SocioMapper.ADto).ToList();
+            return Ordenar(repositorio.ObtenerTodos()).Select(MapearADto).ToList();
         }
 
-        private bool TieneSociosACargo(Socio socio) => _socios.ObtenerACargo(socio).Count > 0;
-
-        /// <summary>El DNI no puede repetirse entre socios (el propio socio, al editarlo, no cuenta).</summary>
-        private void ExigirDniLibre(string dni, int? socioId)
+        public SocioDTO ObtenerPorId(int id)
         {
-            var existente = _socios.ObtenerPorDni(dni);
-            if (existente is not null && existente.Id != socioId)
-                throw new ReglaNegocioException("Ya existe un socio registrado con ese DNI.");
+            return MapearADto(repositorio.ObtenerExistente(id));
+        }
+
+        // Socios activos de categoría Responsable: los que se pueden elegir como responsables.
+        public List<SocioDTO> ObtenerResponsables()
+        {
+            return Ordenar(repositorio.ObtenerTodos().Where(s => s.EsResponsable && s.Activo)).Select(MapearADto).ToList();
+        }
+
+        public List<SocioDTO> ObtenerACargo(int responsableId)
+        {
+            Socio responsable = repositorio.ObtenerExistente(responsableId);
+            return Ordenar(SociosACargo(responsable)).Select(MapearADto).ToList();
+        }
+
+        private Socio? BuscarResponsable(int? responsableId)
+        {
+            return responsableId.HasValue ? repositorio.ObtenerExistente(responsableId.Value) : null;
+        }
+
+        private IEnumerable<Socio> SociosACargo(Socio responsable)
+        {
+            return repositorio.ObtenerTodos().Where(s => s.Responsable != null && s.Responsable.Id == responsable.Id);
+        }
+
+        private bool TieneSociosACargo(Socio socio)
+        {
+            return SociosACargo(socio).Any();
+        }
+
+        private void ExigirDniLibre(string dni, int idAIgnorar)
+        {
+            if (repositorio.ObtenerTodos().Any(s => s.Id != idAIgnorar && s.Dni == dni))
+            {
+                throw new NegocioException("Ya existe un socio registrado con ese DNI.");
+            }
+        }
+
+        private static IEnumerable<Socio> Ordenar(IEnumerable<Socio> socios)
+        {
+            return socios.OrderBy(s => s.Apellido).ThenBy(s => s.Nombre);
+        }
+
+        internal static SocioDTO MapearADto(Socio socio)
+        {
+            SocioDTO dto = new SocioDTO();
+            dto.Id = socio.Id;
+            dto.Nombre = socio.Nombre;
+            dto.Apellido = socio.Apellido;
+            dto.Dni = socio.Dni;
+            dto.Telefono = socio.Telefono;
+            dto.Email = socio.Email;
+            dto.Categoria = socio.Categoria;
+            dto.ResponsableId = socio.Responsable?.Id;
+            dto.Responsable = socio.Responsable?.ObtenerDescripcion() ?? string.Empty;
+            dto.Activo = socio.Activo;
+            dto.Descripcion = socio.ObtenerDescripcion();
+            return dto;
         }
     }
 }

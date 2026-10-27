@@ -1,154 +1,183 @@
-using CooperadoraISFT94.Common.Exceptions;
-using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository.Memoria;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Repository;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Service
 {
-    public sealed class CatalogoService : ICatalogoService
+    // Medios de pago, motivos y grupos de egreso: el administrador los agrega, renombra y desactiva.
+    public class CatalogoService
     {
-        private static readonly Lazy<CatalogoService> _instancia = new(() =>
-            new CatalogoService(MedioPagoRepository.Instancia, MotivoEgresoRepository.Instancia,
-                                GrupoEgresoRepository.Instancia, AuditoriaService.Instancia));
-        public static CatalogoService Instancia => _instancia.Value;
+        private readonly IRepository<MedioPago> medioRepositorio;
+        private readonly IRepository<MotivoEgreso> motivoRepositorio;
+        private readonly IRepository<GrupoEgreso> grupoRepositorio;
+        private readonly AuditoriaService auditoria;
 
-        private readonly IMedioPagoRepository _medios;
-        private readonly IMotivoEgresoRepository _motivos;
-        private readonly IGrupoEgresoRepository _grupos;
-        private readonly IAuditoriaService _auditoria;
-
-        internal CatalogoService(IMedioPagoRepository medios, IMotivoEgresoRepository motivos,
-                                 IGrupoEgresoRepository grupos, IAuditoriaService auditoria)
+        public CatalogoService()
+            : this(Repositorios.MediosPago, Repositorios.MotivosEgreso, Repositorios.GruposEgreso, new AuditoriaService())
         {
-            _medios = medios;
-            _motivos = motivos;
-            _grupos = grupos;
-            _auditoria = auditoria;
         }
 
-        public IReadOnlyList<MedioPagoDto> ObtenerMediosPago(bool incluirInactivos = false) =>
-            _medios.ObtenerTodos()
-                   .Where(m => incluirInactivos || m.Activo)
-                   .OrderBy(m => m.Nombre)
-                   .Select(CatalogoMapper.ADto)
-                   .ToList();
-
-        public IReadOnlyList<MotivoEgresoDto> ObtenerMotivosEgreso(bool incluirInactivos = false) =>
-            _motivos.ObtenerTodos()
-                    .Where(m => incluirInactivos || m.Activo)
-                    .OrderBy(m => m.Nombre)
-                    .Select(CatalogoMapper.ADto)
-                    .ToList();
-
-        public IReadOnlyList<GrupoEgresoDto> ObtenerGruposEgreso(bool incluirInactivos = false) =>
-            _grupos.ObtenerTodos()
-                   .Where(g => incluirInactivos || g.Activo)
-                   .OrderBy(g => g.Nombre)
-                   .Select(CatalogoMapper.ADto)
-                   .ToList();
-
-        public IReadOnlyList<ItemCatalogoDto> ObtenerItems(TipoCatalogo tipo) =>
-            Items(tipo).OrderBy(i => i.Nombre).Select(i => ADto(tipo, i)).ToList();
-
-        public ItemCatalogoDto Agregar(TipoCatalogo tipo, string nombre, int usuarioId)
+        public CatalogoService(IRepository<MedioPago> medioRepositorio, IRepository<MotivoEgreso> motivoRepositorio,
+            IRepository<GrupoEgreso> grupoRepositorio, AuditoriaService auditoria)
         {
-            ItemCatalogo item = tipo switch
-            {
-                TipoCatalogo.MedioPago => new MedioPago(nombre),
-                TipoCatalogo.MotivoEgreso => new MotivoEgreso(nombre),
-                TipoCatalogo.GrupoEgreso => new GrupoEgreso(nombre),
-                _ => throw new ReglaNegocioException("El catálogo no es válido.")
-            };
-            ExigirNombreLibre(tipo, item.Nombre, itemId: null);
-
-            item = item switch
-            {
-                MedioPago medio => _medios.Agregar(medio),
-                MotivoEgreso motivo => _motivos.Agregar(motivo),
-                GrupoEgreso grupo => _grupos.Agregar(grupo),
-                _ => throw new ReglaNegocioException("El catálogo no es válido.")
-            };
-
-            _auditoria.Registrar(usuarioId, AccionAuditoria.Alta, item.GetType().Name, item.Id, item.Nombre);
-            return ADto(tipo, item);
+            this.medioRepositorio = medioRepositorio;
+            this.motivoRepositorio = motivoRepositorio;
+            this.grupoRepositorio = grupoRepositorio;
+            this.auditoria = auditoria;
         }
 
-        public ItemCatalogoDto Renombrar(TipoCatalogo tipo, int id, string nombre, int usuarioId)
+        // incluirInactivos: true para filtrar datos ya registrados; false para cargar movimientos nuevos.
+        public List<ItemCatalogoDTO> ObtenerItems(TipoCatalogo tipo, bool incluirInactivos)
         {
-            var item = ObtenerExistente(tipo, id);
-            var anterior = item.Nombre;
+            return Items(tipo).Where(i => incluirInactivos || i.Activo)
+                              .OrderBy(i => i.Nombre)
+                              .Select(i => MapearADto(tipo, i))
+                              .ToList();
+        }
 
-            item.Renombrar(nombre);
+        // Agrega el ítem si dto.Id es 0; si no, lo renombra.
+        public ItemCatalogoDTO Guardar(ItemCatalogoDTO dto, int usuarioId)
+        {
+            if (dto == null)
+            {
+                throw new ArgumentException("Los datos del ítem son obligatorios.");
+            }
+            return dto.Id == 0 ? Agregar(dto, usuarioId) : Renombrar(dto, usuarioId);
+        }
+
+        private ItemCatalogoDTO Agregar(ItemCatalogoDTO dto, int usuarioId)
+        {
+            ItemCatalogo nuevo;
+            switch (dto.Tipo)
+            {
+                case TipoCatalogo.MedioPago:
+                    nuevo = new MedioPago(medioRepositorio.ObtenerProximoId(), dto.Nombre);
+                    break;
+                case TipoCatalogo.MotivoEgreso:
+                    nuevo = new MotivoEgreso(motivoRepositorio.ObtenerProximoId(), dto.Nombre);
+                    break;
+                case TipoCatalogo.GrupoEgreso:
+                    nuevo = new GrupoEgreso(grupoRepositorio.ObtenerProximoId(), dto.Nombre);
+                    break;
+                default:
+                    throw new NegocioException("El catálogo no es válido.");
+            }
+            ExigirNombreLibre(dto.Tipo, nuevo.Nombre, 0);
+
+            switch (nuevo)
+            {
+                case MedioPago medio:
+                    medioRepositorio.Agregar(medio);
+                    break;
+                case MotivoEgreso motivo:
+                    motivoRepositorio.Agregar(motivo);
+                    break;
+                case GrupoEgreso grupo:
+                    grupoRepositorio.Agregar(grupo);
+                    break;
+            }
+            auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nuevo.GetType().Name, nuevo.Id, nuevo.Nombre);
+            return MapearADto(dto.Tipo, nuevo);
+        }
+
+        private ItemCatalogoDTO Renombrar(ItemCatalogoDTO dto, int usuarioId)
+        {
+            ItemCatalogo item = ObtenerExistente(dto.Tipo, dto.Id);
+            string anterior = item.Nombre;
+
+            // El setter valida el nombre; si está repetido, el ítem vuelve a su nombre anterior.
+            item.Nombre = dto.Nombre;
             try
             {
-                ExigirNombreLibre(tipo, item.Nombre, item.Id);
+                ExigirNombreLibre(dto.Tipo, item.Nombre, item.Id);
             }
-            catch (ReglaNegocioException)
+            catch (NegocioException)
             {
-                item.Renombrar(anterior);
+                item.Nombre = anterior;
                 throw;
             }
-
             Guardar(item);
-            _auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, item.GetType().Name, item.Id,
-                                 new DescripcionCambios().Campo("Nombre", anterior, item.Nombre).ToString());
-            return ADto(tipo, item);
+            auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, item.GetType().Name, item.Id,
+                new DescripcionCambios().Campo("Nombre", anterior, item.Nombre).ToString());
+            return MapearADto(dto.Tipo, item);
         }
 
-        public ItemCatalogoDto CambiarEstado(TipoCatalogo tipo, int id, bool activo, int usuarioId)
+        // Un ítem desactivado no se ofrece para movimientos nuevos; los ya registrados no cambian.
+        public ItemCatalogoDTO CambiarEstado(TipoCatalogo tipo, int id, bool activo, int usuarioId)
         {
-            var item = ObtenerExistente(tipo, id);
-
-            if (activo)
-                item.Activar();
-            else
-                item.Desactivar();
-
+            ItemCatalogo item = ObtenerExistente(tipo, id);
+            item.Activo = activo;
             Guardar(item);
-            _auditoria.Registrar(usuarioId, activo ? AccionAuditoria.Modificacion : AccionAuditoria.Baja,
-                                 item.GetType().Name, item.Id, activo ? "Activado" : "Desactivado");
-            return ADto(tipo, item);
+            auditoria.Registrar(usuarioId, activo ? AccionAuditoria.Modificacion : AccionAuditoria.Baja,
+                item.GetType().Name, item.Id, activo ? "Activado" : "Desactivado");
+            return MapearADto(tipo, item);
         }
 
-        private IEnumerable<ItemCatalogo> Items(TipoCatalogo tipo) =>
-            tipo switch
+        private IEnumerable<ItemCatalogo> Items(TipoCatalogo tipo)
+        {
+            switch (tipo)
             {
-                TipoCatalogo.MedioPago => _medios.ObtenerTodos(),
-                TipoCatalogo.MotivoEgreso => _motivos.ObtenerTodos(),
-                TipoCatalogo.GrupoEgreso => _grupos.ObtenerTodos(),
-                _ => throw new ReglaNegocioException("El catálogo no es válido.")
-            };
+                case TipoCatalogo.MedioPago:
+                    return medioRepositorio.ObtenerTodos();
+                case TipoCatalogo.MotivoEgreso:
+                    return motivoRepositorio.ObtenerTodos();
+                case TipoCatalogo.GrupoEgreso:
+                    return grupoRepositorio.ObtenerTodos();
+                default:
+                    throw new NegocioException("El catálogo no es válido.");
+            }
+        }
 
-        private ItemCatalogo ObtenerExistente(TipoCatalogo tipo, int id) =>
-            tipo switch
+        private ItemCatalogo ObtenerExistente(TipoCatalogo tipo, int id)
+        {
+            switch (tipo)
             {
-                TipoCatalogo.MedioPago => _medios.ObtenerExistente(id),
-                TipoCatalogo.MotivoEgreso => _motivos.ObtenerExistente(id),
-                TipoCatalogo.GrupoEgreso => _grupos.ObtenerExistente(id),
-                _ => throw new ReglaNegocioException("El catálogo no es válido.")
-            };
+                case TipoCatalogo.MedioPago:
+                    return medioRepositorio.ObtenerExistente(id);
+                case TipoCatalogo.MotivoEgreso:
+                    return motivoRepositorio.ObtenerExistente(id);
+                case TipoCatalogo.GrupoEgreso:
+                    return grupoRepositorio.ObtenerExistente(id);
+                default:
+                    throw new NegocioException("El catálogo no es válido.");
+            }
+        }
 
         private void Guardar(ItemCatalogo item)
         {
             switch (item)
             {
-                case MedioPago medio: _medios.Actualizar(medio); break;
-                case MotivoEgreso motivo: _motivos.Actualizar(motivo); break;
-                case GrupoEgreso grupo: _grupos.Actualizar(grupo); break;
+                case MedioPago medio:
+                    medioRepositorio.Actualizar(medio);
+                    break;
+                case MotivoEgreso motivo:
+                    motivoRepositorio.Actualizar(motivo);
+                    break;
+                case GrupoEgreso grupo:
+                    grupoRepositorio.Actualizar(grupo);
+                    break;
             }
         }
 
-        /// <summary>No puede haber dos ítems con el mismo nombre en un catálogo (sin distinguir mayúsculas).</summary>
-        private void ExigirNombreLibre(TipoCatalogo tipo, string nombre, int? itemId)
+        // No puede haber dos ítems con el mismo nombre en un catálogo (sin distinguir mayúsculas).
+        private void ExigirNombreLibre(TipoCatalogo tipo, string nombre, int idAIgnorar)
         {
-            if (Items(tipo).Any(i => i.Id != itemId && string.Equals(i.Nombre, nombre, StringComparison.OrdinalIgnoreCase)))
-                throw new ReglaNegocioException($"Ya existe \"{nombre}\" en el catálogo.");
+            if (Items(tipo).Any(i => i.Id != idAIgnorar && string.Equals(i.Nombre, nombre, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new NegocioException("Ya existe \"" + nombre + "\" en el catálogo.");
+            }
         }
 
-        private static ItemCatalogoDto ADto(TipoCatalogo tipo, ItemCatalogo item) =>
-            new(item.Id, tipo, item.Nombre, item.Activo);
+        private static ItemCatalogoDTO MapearADto(TipoCatalogo tipo, ItemCatalogo item)
+        {
+            ItemCatalogoDTO dto = new ItemCatalogoDTO();
+            dto.Id = item.Id;
+            dto.Tipo = tipo;
+            dto.Nombre = item.Nombre;
+            dto.Activo = item.Activo;
+            return dto;
+        }
     }
 }

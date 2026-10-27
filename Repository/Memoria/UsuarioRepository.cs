@@ -1,16 +1,19 @@
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository;
 
 namespace CooperadoraISFT94.Repository.Memoria
 {
-    public sealed class UsuarioRepository : InMemoryRepository<Usuario>, IUsuarioRepository
+    public class UsuarioRepository : RepositorioBase<Usuario>
     {
-        private static readonly Lazy<UsuarioRepository> _instancia = new(() => new UsuarioRepository());
-        public static UsuarioRepository Instancia => _instancia.Value;
+        private static readonly UsuarioRepository instancia = new UsuarioRepository();
 
-        internal UsuarioRepository() : base("El usuario seleccionado no existe.") { }
+        // Interno (y no privado) solo para que los tests puedan trabajar con un repositorio vacío.
+        internal UsuarioRepository() : base("El usuario seleccionado no existe.")
+        {
+        }
 
-        public Usuario? ObtenerPorNombreUsuario(string nombreUsuario) =>
-            Items.FirstOrDefault(u => string.Equals(u.NombreUsuario, nombreUsuario, StringComparison.OrdinalIgnoreCase));
+        public static UsuarioRepository ObtenerInstancia()
+        {
+            return instancia;
+        }
     }
 }

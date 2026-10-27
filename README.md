@@ -14,18 +14,18 @@ Requiere el SDK de .NET 10 en Windows.
 dotnet run --project CooperadoraISFT94.csproj
 ```
 
-Usuarios de prueba (se cargan en `Repositories/InMemory/DatosIniciales.cs`):
+Usuarios de prueba (se cargan en `Datos/DatosIniciales.cs`):
 
 | Usuario | Contraseña | Rol |
 |---|---|---|
 | `admin` | `admin123` | Administrador: usuarios, catálogos y auditoría |
 | `operador` | `operador123` | Operador: socios, cuotas e ingresos |
 | `contador` | `contador123` | Contador: caja, egresos y movimientos |
-| `pablo.paz` | `operador123` | Operador y Contador (usuario con dos roles) |
+| `pablo.paz` | `operador123` | Operador y Contador (usuario con dos roles; solo con los datos de ejemplo) |
 
 ### Datos de ejemplo
 
-Al iniciar, `Repositories/InMemory/DatosDeEjemplo.cs` simula el uso de la cooperadora desde marzo de 2024 hasta hoy,
+Al iniciar en modo **Debug**, `Datos/DatosDeEjemplo.cs` simula el uso de la cooperadora desde marzo de 2024 hasta hoy,
 usando los servicios reales (así todo cumple las reglas y queda en la auditoría):
 
 - **38 socios**: 7 responsables con 1 a 3 socios a cargo, 4 que se inscriben a mitad de 2025 y 3 dados de baja.
@@ -37,13 +37,40 @@ usando los servicios reales (así todo cumple las reglas y queda en la auditorí
 - Cambios de catálogos (se agregan "Mercado Pago" y "Limpieza", se desactiva "Cheque"), un usuario desactivado
   y la corrección de datos de un socio.
 
-Es determinístico: siempre genera lo mismo (para la misma fecha de hoy). Se elimina al conectar la base de datos.
+Es determinístico: siempre genera lo mismo (para la misma fecha de hoy). En modo Release solo se cargan los catálogos y
+los tres usuarios de prueba.
 
 Tests:
 
 ```bash
 dotnet test CooperadoraISFT94.slnx
 ```
+
+## Organización como el proyecto Eventos
+
+El código se reorganizó para seguir la misma lógica que el proyecto Eventos (detalle en [ARQUITECTURA.md](ARQUITECTURA.md)):
+
+- **Carpetas y capas iguales:** `Domain`, `Repository` (con `Memoria`), `Service`, `Controller`, `Dto`, `Forms`
+  (con `Utils`), `Common` (con `Enums` y `Exceptions`) y `Datos`.
+- **Interfaces:** `IEntidad` (todas las entidades), `IRepository<T>` (todos los repositorios, con `ObtenerProximoId`)
+  e `IVuelveDeSubpantalla` (pantallas que se actualizan al volver de otra). `Repository/Repositorios.cs` es el único
+  lugar donde se eligen los repositorios: para conectar una base de datos se cambian esas líneas.
+- **Propiedades que se validan solas:** cada entidad valida sus datos en los setters y en el constructor, con
+  mensajes claros ("El DNI debe tener 7 u 8 números, sin puntos.").
+- **Servicios y controladores** como en Eventos: el servicio recibe los repositorios por constructor y mapea a DTOs;
+  el controlador exige el rol y delega. Los DTO son clases con propiedades (`SocioDTO`, `CuotaDTO`...).
+- **Pantallas hechas con el diseñador de Visual Studio** (`FrmSocios`, `FrmCuotas`, `FrmCaja`...): se pueden abrir y
+  editar visualmente.
+- **Menú lateral** en lugar de pestañas: cada usuario ve las secciones de sus roles; la ficha del socio se abre
+  dentro de la misma ventana con **Volver**. Nueva pantalla de **Inicio** con un resumen según el rol (caja,
+  morosos, socios, usuarios) y un aviso si la caja está cerrada.
+- **Avisos de error como en Eventos:** los errores se muestran con `Mensajes.Advertencia`; lo que sale bien, con un
+  aviso breve en la pantalla ("Socio guardado.") que se borra solo. Si quedan datos sin guardar, se pregunta antes
+  de descartarlos.
+- **Buscador** en cada grilla: filtra mientras se escribe, sin distinguir mayúsculas ni tildes y con varias palabras.
+- **Textos con tildes** en las enumeraciones ("Cuota social", "Donación", "Modificación").
+- **Cobro en familia:** desde la ficha de un responsable se cobran juntas sus cuotas y las de sus socios a cargo,
+  eligiendo cuáles.
 
 ## Cambios de la rama `agus`
 
@@ -109,7 +136,7 @@ dotnet test CooperadoraISFT94.slnx
   grupo (Estudiantes, Administración, Otros) y el detalle de sus gastos con subtotales. No incluye los anulados.
 
 ### Interfaz
-- **Tema oscuro y sobrio** en todas las pantallas: pestañas, desplegables, grillas, barras de desplazamiento,
+- **Tema oscuro y sobrio** en todas las pantallas: menú, desplegables, grillas, barras de desplazamiento,
   campos numéricos, avisos, calendario y barra de título (Windows 10/11).
 - **Pantalla completa:** el login y la ventana principal abren maximizados; los formularios quedan centrados.
 - **Montos en pesos** ("$ 5.000,00") sin importar la configuración regional de Windows
@@ -117,7 +144,7 @@ dotnet test CooperadoraISFT94.slnx
 - Campo de fecha propio con calendario desplegable, y avisos propios en lugar de los de Windows.
 
 ### Tests
-- Proyecto `Tests/CooperadoraISFT94.Tests` (xUnit) con **66 tests**: reglas del dominio (caja, movimientos,
+- Proyecto `Tests/CooperadoraISFT94.Tests` (xUnit) con **67 tests**: reglas del dominio (caja, movimientos,
   socios, cuotas, contraseñas) y servicios (DNI repetido, generación de cuotas, pagos, pago del responsable,
   anulaciones, resumen de caja, bloqueo de login, catálogos, grupos de egreso, exportación de egresos, usuarios multirol
   y filtros de auditoría).

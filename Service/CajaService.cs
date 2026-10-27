@@ -1,112 +1,144 @@
-using CooperadoraISFT94.Common.Exceptions;
-using CooperadoraISFT94.Dto;
+using CooperadoraISFT94.Common;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository.Memoria;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Repository;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Service
 {
-    public sealed class CajaService : ICajaService
+    public class CajaService
     {
-        private static readonly Lazy<CajaService> _instancia = new(() =>
-            new CajaService(CajaRepository.Instancia, MovimientoRepository.Instancia,
-                            CajaTotalMedioPagoRepository.Instancia, AuditoriaService.Instancia));
-        public static CajaService Instancia => _instancia.Value;
+        private readonly IRepository<Caja> repositorio;
+        private readonly IRepository<Movimiento> movimientoRepositorio;
+        private readonly IRepository<CajaTotalMedioPago> totalRepositorio;
+        private readonly AuditoriaService auditoria;
+        private readonly Func<DateTime> reloj;
 
-        private readonly ICajaRepository _cajas;
-        private readonly IMovimientoRepository _movimientos;
-        private readonly ICajaTotalMedioPagoRepository _totales;
-        private readonly IAuditoriaService _auditoria;
-        private readonly Func<DateTime> _reloj;
-
-        internal CajaService(ICajaRepository cajas, IMovimientoRepository movimientos,
-                             ICajaTotalMedioPagoRepository totales, IAuditoriaService auditoria,
-                             Func<DateTime>? reloj = null)
+        public CajaService()
+            : this(Repositorios.Cajas, Repositorios.Movimientos, Repositorios.TotalesMedioPago, new AuditoriaService())
         {
-            _cajas = cajas;
-            _movimientos = movimientos;
-            _totales = totales;
-            _auditoria = auditoria;
-            _reloj = reloj ?? (() => DateTime.Now);
         }
 
-        public CajaDto? ObtenerActiva()
+        public CajaService(IRepository<Caja> repositorio, IRepository<Movimiento> movimientoRepositorio,
+            IRepository<CajaTotalMedioPago> totalRepositorio, AuditoriaService auditoria, Func<DateTime>? reloj = null)
         {
-            var caja = _cajas.ObtenerActiva();
-            return caja is null ? null : CajaMapper.ADto(caja);
+            this.repositorio = repositorio;
+            this.movimientoRepositorio = movimientoRepositorio;
+            this.totalRepositorio = totalRepositorio;
+            this.auditoria = auditoria;
+            this.reloj = reloj ?? (() => DateTime.Now);
         }
 
-        public IReadOnlyList<CajaDto> ObtenerTodas() =>
-            _cajas.ObtenerTodos()
-                  .OrderByDescending(c => c.FechaApertura)
-                  .Select(CajaMapper.ADto)
-                  .ToList();
-
-        public CajaDto Abrir(AbrirCajaDto dto, int usuarioId)
+        public CajaDTO? ObtenerActiva()
         {
-            ArgumentNullException.ThrowIfNull(dto);
-
-            if (_cajas.ObtenerActiva() is not null)
-                throw new ReglaNegocioException("Ya hay una caja abierta.");
-
-            // La Caja valida su monto inicial.
-            var caja = _cajas.Agregar(new Caja(dto.MontoInicial, _reloj()));
-            _auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(Caja), caja.Id,
-                                 $"Apertura con {caja.MontoInicial:C2}");
-
-            return CajaMapper.ADto(caja);
+            Caja? caja = BuscarAbierta();
+            return caja == null ? null : MapearADto(caja);
         }
 
-        public ResumenCajaDto Cerrar(CerrarCajaDto dto, int usuarioId)
+        // De la más reciente a la más antigua.
+        public List<CajaDTO> ObtenerTodas()
         {
-            ArgumentNullException.ThrowIfNull(dto);
+            return repositorio.ObtenerTodos()
+                              .OrderByDescending(c => c.FechaApertura)
+                              .Select(MapearADto)
+                              .ToList();
+        }
 
-            var caja = ObtenerCajaAbierta();
-            caja.CerrarCaja(_reloj(), dto.MontoTotal);
-            _cajas.Actualizar(caja);
+        public CajaDTO Abrir(decimal montoInicial, int usuarioId)
+        {
+            if (BuscarAbierta() != null)
+            {
+                throw new NegocioException("Ya hay una caja abierta.");
+            }
 
-            var resumen = CalcularResumen(caja, dto.MontoTotal);
-            _auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(Caja), caja.Id,
-                                 $"Cierre: esperado {resumen.MontoEsperado:C2}, contado {dto.MontoTotal:C2}, diferencia {resumen.Diferencia:C2}");
+            Caja caja = new Caja(repositorio.ObtenerProximoId(), montoInicial, reloj());
+            repositorio.Agregar(caja);
+            auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(Caja), caja.Id,
+                "Apertura con " + Formato.Monto(caja.MontoInicial));
+            return MapearADto(caja);
+        }
 
+        // montoContado: el dinero que se contó al cerrar.
+        public ResumenCajaDTO Cerrar(decimal montoContado, int usuarioId)
+        {
+            Caja caja = ObtenerAbierta();
+            caja.Cerrar(reloj(), montoContado);
+            repositorio.Actualizar(caja);
+
+            ResumenCajaDTO resumen = CalcularResumen(caja, montoContado);
+            auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(Caja), caja.Id,
+                "Cierre: esperado " + Formato.Monto(resumen.MontoEsperado) + ", contado " + Formato.Monto(montoContado)
+                + ", diferencia " + Formato.Monto(resumen.Diferencia ?? 0));
             return resumen;
         }
 
-        public ResumenCajaDto ObtenerResumenActivo(decimal? montoDeclarado) =>
-            CalcularResumen(ObtenerCajaAbierta(), montoDeclarado);
-
-        public ResumenCajaDto ObtenerResumen(int cajaId)
+        // Resumen de la caja abierta; montoDeclarado es lo que se está contando (null si todavía no se informó).
+        public ResumenCajaDTO ObtenerResumenActivo(decimal? montoDeclarado)
         {
-            var caja = _cajas.ObtenerExistente(cajaId);
+            return CalcularResumen(ObtenerAbierta(), montoDeclarado);
+        }
+
+        public ResumenCajaDTO ObtenerResumen(int cajaId)
+        {
+            Caja caja = repositorio.ObtenerExistente(cajaId);
             return CalcularResumen(caja, caja.EstaAbierta ? null : caja.MontoTotal);
         }
 
-        private Caja ObtenerCajaAbierta() =>
-            _cajas.ObtenerActiva() ?? throw new NoEncontradoException("No hay una caja abierta.");
-
-        /// <summary>Diferencia = monto declarado - monto esperado (inicial + saldo neto de cada medio de pago).</summary>
-        private ResumenCajaDto CalcularResumen(Caja caja, decimal? montoDeclarado)
+        private Caja? BuscarAbierta()
         {
-            var movimientos = _movimientos.ObtenerPorCaja(caja);
-            var vigentes = movimientos.Where(m => !m.Anulado).ToList();
-            var totalIngresos = vigentes.Where(m => m.Tipo == TipoMovimiento.Ingreso).Sum(m => m.Monto);
-            var totalEgresos = vigentes.Where(m => m.Tipo == TipoMovimiento.Egreso).Sum(m => m.Monto);
+            return repositorio.ObtenerTodos().FirstOrDefault(c => c.EstaAbierta);
+        }
+
+        private Caja ObtenerAbierta()
+        {
+            Caja? caja = BuscarAbierta();
+            if (caja == null)
+            {
+                throw new NoEncontradoException("No hay una caja abierta.");
+            }
+            return caja;
+        }
+
+        // Diferencia = monto declarado - monto esperado (inicial + saldo neto de cada medio de pago).
+        private ResumenCajaDTO CalcularResumen(Caja caja, decimal? montoDeclarado)
+        {
+            List<Movimiento> movimientos = movimientoRepositorio.ObtenerTodos().Where(m => ReferenceEquals(m.Caja, caja)).ToList();
+            List<Movimiento> vigentes = movimientos.Where(m => !m.Anulado).ToList();
 
             // Los totales por medio ya tienen revertidos los movimientos anulados.
-            var totales = _totales.ObtenerPorCaja(caja);
-            var montoEsperado = caja.MontoInicial + totales.Sum(t => t.Monto);
-            decimal? diferencia = montoDeclarado.HasValue ? montoDeclarado.Value - montoEsperado : null;
+            List<CajaTotalMedioPago> totales = totalRepositorio.ObtenerTodos().Where(t => ReferenceEquals(t.Caja, caja)).ToList();
 
-            var totalesPorMedio = totales
-                .OrderBy(t => t.MedioPago.Nombre)
-                .Select(t => new TotalMedioPagoDto(t.MedioPago.Nombre, t.Monto))
-                .ToList();
+            ResumenCajaDTO resumen = new ResumenCajaDTO();
+            resumen.Caja = MapearADto(caja);
+            resumen.MontoInicial = caja.MontoInicial;
+            resumen.TotalIngresos = vigentes.Where(m => m.Tipo == TipoMovimiento.Ingreso).Sum(m => m.Monto);
+            resumen.TotalEgresos = vigentes.Where(m => m.Tipo == TipoMovimiento.Egreso).Sum(m => m.Monto);
+            resumen.MontoEsperado = caja.MontoInicial + totales.Sum(t => t.Monto);
+            resumen.MontoDeclarado = montoDeclarado;
+            resumen.Diferencia = montoDeclarado.HasValue ? montoDeclarado.Value - resumen.MontoEsperado : null;
+            resumen.CantidadMovimientos = vigentes.Count;
+            resumen.CantidadAnulados = movimientos.Count - vigentes.Count;
+            foreach (CajaTotalMedioPago total in totales.OrderBy(t => t.MedioPago.Nombre))
+            {
+                TotalMedioPagoDTO fila = new TotalMedioPagoDTO();
+                fila.MedioPago = total.MedioPago.Nombre;
+                fila.Monto = total.Monto;
+                resumen.TotalesPorMedio.Add(fila);
+            }
+            return resumen;
+        }
 
-            return new ResumenCajaDto(
-                CajaMapper.ADto(caja), caja.MontoInicial, totalIngresos, totalEgresos, montoEsperado,
-                montoDeclarado, diferencia, totalesPorMedio, vigentes.Count, movimientos.Count - vigentes.Count);
+        internal static CajaDTO MapearADto(Caja caja)
+        {
+            CajaDTO dto = new CajaDTO();
+            dto.Id = caja.Id;
+            dto.FechaApertura = caja.FechaApertura;
+            dto.FechaCierre = caja.FechaCierre;
+            dto.MontoInicial = caja.MontoInicial;
+            dto.MontoTotal = caja.MontoTotal;
+            dto.Estado = caja.Estado;
+            return dto;
         }
     }
 }

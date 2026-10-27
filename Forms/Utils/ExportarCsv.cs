@@ -19,7 +19,7 @@ namespace CooperadoraISFT94.Forms.Utils
         /// Egresos de un período organizados por grupo: primero un resumen con el total de cada grupo
         /// y después el detalle de cada uno con su subtotal. False si se canceló.
         /// </summary>
-        public static bool EgresosPorGrupo(IReadOnlyList<MovimientoDto> egresos, DateTime desde, DateTime hasta) =>
+        public static bool EgresosPorGrupo(IReadOnlyList<MovimientoDTO> egresos, DateTime desde, DateTime hasta) =>
             Guardar(ArmarEgresosPorGrupo(egresos, desde, hasta),
                     $"Egresos por grupo {desde:yyyy-MM-dd} a {hasta:yyyy-MM-dd}", conFecha: false);
 
@@ -61,7 +61,7 @@ namespace CooperadoraISFT94.Forms.Utils
             return texto.ToString();
         }
 
-        public static string ArmarEgresosPorGrupo(IReadOnlyList<MovimientoDto> egresos, DateTime desde, DateTime hasta)
+        public static string ArmarEgresosPorGrupo(IReadOnlyList<MovimientoDTO> egresos, DateTime desde, DateTime hasta)
         {
             var total = egresos.Sum(e => e.Monto);
             var grupos = egresos.GroupBy(e => e.Grupo).OrderBy(g => g.Key).ToList();

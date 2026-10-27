@@ -1,62 +1,61 @@
 using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 
 namespace CooperadoraISFT94.Domain
 {
-    public class Cuota : Entidad
+    public class Cuota : IEntidad
     {
-        /// <summary>Una cuota nace siempre pendiente; después solo cambia de estado con CambiarEstado.</summary>
-        public Cuota(Socio socio, decimal monto, int anio)
+        // Una cuota nace pendiente; pasa a pagada al cobrarla y vuelve a pendiente solo si se anula ese cobro.
+        public Cuota(int id, Socio socio, decimal monto, int anio)
         {
-            Socio = socio ?? throw new ReglaNegocioException("La cuota debe pertenecer a un socio.");
-            Monto = Validaciones.ExigirMontoPositivo(monto, "monto");
-
-            if (!Validaciones.EsAnioValido(anio))
-                throw new ReglaNegocioException("El año de la cuota no es válido.");
-            Anio = anio;
-
+            if (socio == null)
+            {
+                throw new NegocioException("La cuota debe pertenecer a un socio.");
+            }
+            Id = id;
+            Socio = socio;
+            Monto = Validaciones.ExigirMontoPositivo(monto, "monto de la cuota");
+            Anio = Validaciones.ExigirAnio(anio);
             Estado = EstadoCuota.Pendiente;
         }
 
-        public Socio Socio { get; }
+        public int Id { get; private set; }
 
-        public decimal Monto { get; }
+        public Socio Socio { get; private set; }
 
-        public int Anio { get; }
+        public decimal Monto { get; private set; }
+
+        public int Anio { get; private set; }
 
         public EstadoCuota Estado { get; private set; }
 
-        public bool EstaPagada => Estado == EstadoCuota.Pagada;
+        public bool EstaPagada
+        {
+            get { return Estado == EstadoCuota.Pagada; }
+        }
 
-        /// <summary>Lanza el error correspondiente si la cuota no se puede pagar (por ejemplo, ya está pagada).</summary>
         public void ValidarPagable()
         {
             if (EstaPagada)
-                throw new ReglaNegocioException("La cuota ya está pagada.");
+            {
+                throw new NegocioException("La cuota " + Anio + " de " + Socio.ObtenerDescripcion() + " ya está pagada.");
+            }
         }
 
-        /// <summary>
-        /// Única transición manual: Pendiente -> Pagada. Una cuota pagada solo vuelve a pendiente
-        /// si se anula el ingreso que la pagó (<see cref="RevertirPago"/>).
-        /// </summary>
-        public void CambiarEstado(EstadoCuota nuevoEstado)
+        public void MarcarPagada()
         {
-            if (!Enum.IsDefined(nuevoEstado))
-                throw new ReglaNegocioException("El estado de la cuota no es válido.");
-            if (nuevoEstado == Estado)
-                throw new ReglaNegocioException($"La cuota ya está {Estado.ToString().ToLowerInvariant()}.");
-            if (EstaPagada)
-                throw new ReglaNegocioException("Una cuota pagada no puede cambiar de estado.");
-
-            Estado = nuevoEstado;
+            ValidarPagable();
+            Estado = EstadoCuota.Pagada;
         }
 
-        /// <summary>Vuelve la cuota a pendiente porque se anuló el ingreso con que se pagó.</summary>
+        // Vuelve a pendiente porque se anuló el ingreso con que se pagó.
         public void RevertirPago()
         {
             if (!EstaPagada)
-                throw new ReglaNegocioException("La cuota no está pagada.");
+            {
+                throw new NegocioException("La cuota no está pagada.");
+            }
             Estado = EstadoCuota.Pendiente;
         }
     }

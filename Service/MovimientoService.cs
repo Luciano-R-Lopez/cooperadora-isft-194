@@ -1,139 +1,141 @@
-using CooperadoraISFT94.Common.Exceptions;
-using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository.Memoria;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Repository;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Service
 {
-    public sealed class MovimientoService : IMovimientoService
+    public class MovimientoService
     {
         private const string SinDetalle = "-";
 
-        private static readonly Lazy<MovimientoService> _instancia = new(() =>
-            new MovimientoService(MovimientoRepository.Instancia, DetalleIngresoCuotaRepository.Instancia,
-                                  MedioPagoRepository.Instancia, CajaRepository.Instancia, UsuarioRepository.Instancia,
-                                  CuotaRepository.Instancia, GrupoEgresoRepository.Instancia, MovimientoRegistrador.Instancia,
-                                  AuditoriaService.Instancia));
-        public static MovimientoService Instancia => _instancia.Value;
+        private readonly IRepository<Movimiento> repositorio;
+        private readonly IRepository<DetalleIngresoCuota> detalleRepositorio;
+        private readonly IRepository<Caja> cajaRepositorio;
+        private readonly IRepository<Usuario> usuarioRepositorio;
+        private readonly IRepository<Cuota> cuotaRepositorio;
+        private readonly MovimientoRegistrador registrador;
+        private readonly AuditoriaService auditoria;
 
-        private readonly IMovimientoRepository _movimientos;
-        private readonly IDetalleIngresoCuotaRepository _detalles;
-        private readonly IMedioPagoRepository _medios;
-        private readonly IGrupoEgresoRepository _grupos;
-        private readonly ICajaRepository _cajas;
-        private readonly IUsuarioRepository _usuarios;
-        private readonly ICuotaRepository _cuotas;
-        private readonly IMovimientoRegistrador _registrador;
-        private readonly IAuditoriaService _auditoria;
-
-        internal MovimientoService(IMovimientoRepository movimientos, IDetalleIngresoCuotaRepository detalles,
-                                   IMedioPagoRepository medios, ICajaRepository cajas, IUsuarioRepository usuarios,
-                                   ICuotaRepository cuotas, IGrupoEgresoRepository grupos, IMovimientoRegistrador registrador,
-                                   IAuditoriaService auditoria)
+        public MovimientoService()
+            : this(Repositorios.Movimientos, Repositorios.DetallesIngresoCuota, Repositorios.Cajas, Repositorios.Usuarios,
+                Repositorios.Cuotas, new MovimientoRegistrador(), new AuditoriaService())
         {
-            _movimientos = movimientos;
-            _detalles = detalles;
-            _medios = medios;
-            _cajas = cajas;
-            _usuarios = usuarios;
-            _cuotas = cuotas;
-            _grupos = grupos;
-            _registrador = registrador;
-            _auditoria = auditoria;
         }
 
-        public IReadOnlyList<MovimientoDto> Obtener(MovimientoFiltroDto filtro)
+        public MovimientoService(IRepository<Movimiento> repositorio, IRepository<DetalleIngresoCuota> detalleRepositorio,
+            IRepository<Caja> cajaRepositorio, IRepository<Usuario> usuarioRepositorio, IRepository<Cuota> cuotaRepositorio,
+            MovimientoRegistrador registrador, AuditoriaService auditoria)
         {
-            ArgumentNullException.ThrowIfNull(filtro);
+            this.repositorio = repositorio;
+            this.detalleRepositorio = detalleRepositorio;
+            this.cajaRepositorio = cajaRepositorio;
+            this.usuarioRepositorio = usuarioRepositorio;
+            this.cuotaRepositorio = cuotaRepositorio;
+            this.registrador = registrador;
+            this.auditoria = auditoria;
+        }
 
-            var caja = _cajas.ObtenerExistente(filtro.CajaId);
-            if (filtro.Tipo is TipoMovimiento tipoElegido && !Enum.IsDefined(tipoElegido))
-                throw new ReglaNegocioException("El tipo de movimiento no es válido.");
-            if (filtro.MedioPagoId is int medioId)
-                _medios.ObtenerExistente(medioId);
-            if (filtro.GrupoEgresoId is int grupoId)
-                _grupos.ObtenerExistente(grupoId);
-
-            IEnumerable<Movimiento> movimientos = _movimientos.ObtenerPorCaja(caja);
-
-            if (filtro.Tipo is TipoMovimiento tipo)
-                movimientos = movimientos.Where(m => m.Tipo == tipo);
-
-            if (filtro.MedioPagoId is int medioPagoId)
-                movimientos = movimientos.Where(m => m.MedioPago.Id == medioPagoId);
-
-            if (filtro.GrupoEgresoId is int grupoEgresoId)
-                movimientos = movimientos.Where(m => m is Egreso e && e.Grupo.Id == grupoEgresoId);
-
-            // Cuotas que pagó cada ingreso, indexadas por id de movimiento (los egresos simplemente no tienen).
-            var cuotasPorMovimiento = _detalles.ObtenerTodos().ToLookup(d => d.Ingreso.Id);
-
-            IEnumerable<MovimientoDto> resultado = movimientos.Select(m => ADto(m, cuotasPorMovimiento[m.Id]));
-
-            if (!string.IsNullOrWhiteSpace(filtro.Texto))
+        // Ingresos y egresos de una caja (incluidos los anulados), del más reciente al más antiguo.
+        public List<MovimientoDTO> Obtener(MovimientoFiltroDTO filtro)
+        {
+            if (filtro == null)
             {
-                var texto = filtro.Texto.Trim();
-                resultado = resultado.Where(m =>
-                    m.Detalle.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
-                    m.Clasificacion.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
-                    m.Grupo.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
-                    m.Usuario.Contains(texto, StringComparison.OrdinalIgnoreCase));
+                throw new ArgumentException("El filtro es obligatorio.");
+            }
+            Caja caja = cajaRepositorio.ObtenerExistente(filtro.CajaId);
+
+            IEnumerable<Movimiento> movimientos = repositorio.ObtenerTodos().Where(m => ReferenceEquals(m.Caja, caja));
+            if (filtro.Tipo.HasValue)
+            {
+                movimientos = movimientos.Where(m => m.Tipo == filtro.Tipo.Value);
+            }
+            if (filtro.MedioPagoId.HasValue)
+            {
+                movimientos = movimientos.Where(m => m.MedioPago.Id == filtro.MedioPagoId.Value);
+            }
+            if (filtro.GrupoEgresoId.HasValue)
+            {
+                movimientos = movimientos.Where(m => m is Egreso egreso && egreso.Grupo.Id == filtro.GrupoEgresoId.Value);
             }
 
-            return resultado.OrderByDescending(m => m.Fecha).ThenByDescending(m => m.Id).ToList();
+            ILookup<int, DetalleIngresoCuota> cuotasPorIngreso = detalleRepositorio.ObtenerTodos().ToLookup(d => d.Ingreso.Id);
+            return movimientos.OrderByDescending(m => m.Fecha)
+                              .ThenByDescending(m => m.Id)
+                              .Select(m => MapearADto(m, cuotasPorIngreso[m.Id]))
+                              .ToList();
         }
 
-        public MovimientoDto Anular(int movimientoId, string motivo, int usuarioId)
+        // Si el movimiento era un cobro de cuotas, esas cuotas vuelven a quedar pendientes.
+        public MovimientoDTO Anular(int movimientoId, string motivo, int usuarioId)
         {
-            var movimiento = _movimientos.ObtenerExistente(movimientoId);
-            var usuario = _usuarios.ObtenerExistente(usuarioId);
-            var detalles = movimiento is Ingreso ingreso ? _detalles.ObtenerPorIngreso(ingreso) : Array.Empty<DetalleIngresoCuota>();
+            Movimiento movimiento = repositorio.ObtenerExistente(movimientoId);
+            Usuario usuario = usuarioRepositorio.ObtenerExistente(usuarioId);
+            List<DetalleIngresoCuota> detalles = detalleRepositorio.ObtenerTodos()
+                .Where(d => ReferenceEquals(d.Ingreso, movimiento))
+                .ToList();
 
             // Primero la caja: si la anulación falla (por ejemplo, saldo insuficiente), las cuotas quedan como estaban.
-            _registrador.Anular(movimiento, usuario, motivo);
+            registrador.Anular(movimiento, usuario, motivo);
 
-            foreach (var cuota in detalles.Select(d => d.Cuota).Where(c => c.EstaPagada))
+            foreach (Cuota cuota in detalles.Select(d => d.Cuota).Where(c => c.EstaPagada))
             {
                 cuota.RevertirPago();
-                _cuotas.Actualizar(cuota);
-                _auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(Cuota), cuota.Id,
-                                     "Estado: Pagada → Pendiente (se anuló el ingreso)");
+                cuotaRepositorio.Actualizar(cuota);
+                auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(Cuota), cuota.Id,
+                    "Estado: Pagada → Pendiente (se anuló el ingreso)");
             }
-
-            return ADto(movimiento, detalles);
+            return MapearADto(movimiento, detalles);
         }
 
-        public IReadOnlyList<MovimientoDto> ObtenerEgresos(DateTime desde, DateTime hasta)
+        // Egresos vigentes de todas las cajas entre dos fechas (ambas incluidas), ordenados por grupo y fecha.
+        public List<MovimientoDTO> ObtenerEgresos(DateTime desde, DateTime hasta)
         {
             if (desde.Date > hasta.Date)
-                throw new ReglaNegocioException("La fecha \"desde\" no puede ser posterior a la fecha \"hasta\".");
-
-            return _movimientos.ObtenerTodos()
-                               .OfType<Egreso>()
-                               .Where(e => !e.Anulado && e.Fecha.Date >= desde.Date && e.Fecha.Date <= hasta.Date)
-                               .OrderBy(e => e.Grupo.Nombre)
-                               .ThenBy(e => e.Fecha)
-                               .Select(e => ADto(e, Enumerable.Empty<DetalleIngresoCuota>()))
-                               .ToList();
+            {
+                throw new NegocioException("La fecha \"desde\" no puede ser posterior a la fecha \"hasta\".");
+            }
+            return repositorio.ObtenerTodos()
+                              .OfType<Egreso>()
+                              .Where(e => !e.Anulado && e.Fecha.Date >= desde.Date && e.Fecha.Date <= hasta.Date)
+                              .OrderBy(e => e.Grupo.Nombre)
+                              .ThenBy(e => e.Fecha)
+                              .Select(e => MapearADto(e, Enumerable.Empty<DetalleIngresoCuota>()))
+                              .ToList();
         }
 
-        private static MovimientoDto ADto(Movimiento m, IEnumerable<DetalleIngresoCuota> detalles) =>
-            new(m.Id, m.Tipo, m.Fecha, m.Clasificacion, (m as Egreso)?.Grupo.Nombre ?? SinDetalle, DescribirDetalle(detalles),
-                m.MedioPago.Nombre, m.Monto, m.Usuario.NombreCompleto, m.Anulado, m.MotivoAnulacion);
-
-        private static string DescribirDetalle(IEnumerable<DetalleIngresoCuota> detalles)
+        private static MovimientoDTO MapearADto(Movimiento movimiento, IEnumerable<DetalleIngresoCuota> detalles)
         {
-            var cuotas = detalles.Select(DescribirCuota).ToList();
+            MovimientoDTO dto = new MovimientoDTO();
+            dto.Id = movimiento.Id;
+            dto.Fecha = movimiento.Fecha;
+            dto.Tipo = movimiento.Tipo;
+            dto.Clasificacion = movimiento.Clasificacion;
+            dto.Grupo = movimiento is Egreso egreso ? egreso.Grupo.Nombre : SinDetalle;
+            dto.Detalle = DescribirCuotas(detalles);
+            dto.MedioPago = movimiento.MedioPago.Nombre;
+            dto.Monto = movimiento.Monto;
+            dto.Usuario = movimiento.Usuario.NombreCompleto;
+            dto.Anulado = movimiento.Anulado;
+            dto.MotivoAnulacion = movimiento.MotivoAnulacion;
+            return dto;
+        }
+
+        // "Cuota 2026 - Pérez, Sofía (40111222)", y quién pagó si fue su responsable.
+        private static string DescribirCuotas(IEnumerable<DetalleIngresoCuota> detalles)
+        {
+            List<string> cuotas = new List<string>();
+            foreach (DetalleIngresoCuota detalle in detalles)
+            {
+                string texto = "Cuota " + detalle.Cuota.Anio + " - " + detalle.Cuota.Socio.ObtenerDescripcion();
+                if (detalle.PagadaPor != null)
+                {
+                    texto += " (pagó " + detalle.PagadaPor.Apellido + ", " + detalle.PagadaPor.Nombre + ")";
+                }
+                cuotas.Add(texto);
+            }
             return cuotas.Count == 0 ? SinDetalle : string.Join("; ", cuotas);
         }
-
-        /// <summary>"Cuota 2026 - Pérez, Sofía (40111222)", y quién pagó si fue su responsable.</summary>
-        private static string DescribirCuota(DetalleIngresoCuota d) =>
-            d.PagadaPor is Socio responsable
-                ? $"Cuota {d.Cuota.Anio} - {d.Cuota.Socio.ObtenerDescripcion()} (pagó {responsable.Apellido}, {responsable.Nombre})"
-                : $"Cuota {d.Cuota.Anio} - {d.Cuota.Socio.ObtenerDescripcion()}";
     }
 }

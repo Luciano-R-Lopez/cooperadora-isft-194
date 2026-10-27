@@ -1,8 +1,10 @@
 namespace CooperadoraISFT94.Domain
 {
-    /// <summary>Razón por la que sale dinero de la caja.</summary>
+    // Razón por la que sale dinero de la caja.
     public class MotivoEgreso : ItemCatalogo
     {
-        public MotivoEgreso(string nombre) : base(nombre, "motivo de egreso") { }
+        public MotivoEgreso(int id, string nombre) : base(id, nombre, "motivo de egreso")
+        {
+        }
     }
 }

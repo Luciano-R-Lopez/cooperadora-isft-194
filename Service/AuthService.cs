@@ -1,101 +1,102 @@
 using CooperadoraISFT94.Common;
 using CooperadoraISFT94.Common.Exceptions;
+using CooperadoraISFT94.Domain;
 using CooperadoraISFT94.Dto;
-using CooperadoraISFT94.Repository.Memoria;
 using CooperadoraISFT94.Repository;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Service
 {
-    public sealed class AuthService : IAuthService
+    public class AuthService
     {
-        /// <summary>Intentos fallidos seguidos que bloquean el ingreso con ese nombre de usuario.</summary>
-        public const int IntentosPermitidos = 5;
+        // Los intentos fallidos se recuerdan mientras la aplicación está abierta, aunque se cree otro servicio.
+        private static readonly Dictionary<string, IntentosLogin> intentosCompartidos = new Dictionary<string, IntentosLogin>();
 
-        /// <summary>Cuánto dura el bloqueo.</summary>
-        public static readonly TimeSpan DuracionBloqueo = TimeSpan.FromMinutes(5);
+        private readonly IRepository<Usuario> repositorio;
+        private readonly Dictionary<string, IntentosLogin> intentos;
+        private readonly Func<DateTime> reloj;
 
-        private static readonly Lazy<AuthService> _instancia = new(() => new AuthService(UsuarioRepository.Instancia));
-        public static AuthService Instancia => _instancia.Value;
-
-        private readonly IUsuarioRepository _usuarios;
-        private readonly Func<DateTime> _reloj;
-
-        /// <summary>
-        /// Intentos fallidos por nombre de usuario (en minúsculas). Se cuentan también los nombres que no existen,
-        /// para que el bloqueo no revele qué usuarios existen.
-        /// </summary>
-        private readonly Dictionary<string, Intentos> _intentos = new();
-
-        internal AuthService(IUsuarioRepository usuarios, Func<DateTime>? reloj = null)
+        public AuthService()
+            : this(Repositorios.Usuarios, null, intentosCompartidos)
         {
-            _usuarios = usuarios;
-            _reloj = reloj ?? (() => DateTime.Now);
         }
 
-        public UsuarioDto Autenticar(LoginDto login)
+        // Los tests pasan un reloj fijo y sus propios intentos.
+        public AuthService(IRepository<Usuario> repositorio, Func<DateTime>? reloj = null,
+            Dictionary<string, IntentosLogin>? intentos = null)
         {
-            ArgumentNullException.ThrowIfNull(login);
+            this.repositorio = repositorio;
+            this.reloj = reloj ?? (() => DateTime.Now);
+            this.intentos = intentos ?? new Dictionary<string, IntentosLogin>();
+        }
 
-            var nombreUsuario = login.NombreUsuario?.Trim() ?? string.Empty;
-            var password = login.Password ?? string.Empty;
-
+        public UsuarioDTO Autenticar(LoginDTO login)
+        {
+            string nombreUsuario = (login.NombreUsuario ?? string.Empty).Trim();
+            string password = login.Password ?? string.Empty;
             if (nombreUsuario.Length == 0 || password.Length == 0)
-                throw new AutenticacionException("Ingresá usuario y contraseña.");
+            {
+                throw new AutenticacionException("Ingrese usuario y contraseña.");
+            }
 
-            var clave = nombreUsuario.ToLowerInvariant();
+            // Se cuentan también los nombres que no existen, para no revelar qué usuarios existen.
+            string clave = nombreUsuario.ToLowerInvariant();
             ExigirNoBloqueado(clave);
 
-            var usuario = _usuarios.ObtenerPorNombreUsuario(nombreUsuario);
-
-            // Mismo mensaje si el usuario no existe o la contraseña es incorrecta,
-            // para no revelar qué usuarios existen.
-            if (usuario is null || !PasswordHasher.Verificar(password, usuario.PasswordHash))
+            Usuario? usuario = repositorio.ObtenerTodos().FirstOrDefault(u =>
+                string.Equals(u.NombreUsuario, nombreUsuario, StringComparison.OrdinalIgnoreCase));
+            if (usuario == null || !PasswordHasher.Verificar(password, usuario.PasswordHash))
             {
                 RegistrarFallo(clave);
                 throw new AutenticacionException("Usuario o contraseña incorrectos.");
             }
 
-            _intentos.Remove(clave);
-
+            intentos.Remove(clave);
             if (!usuario.Activo)
-                throw new AutenticacionException("El usuario está desactivado. Contactá a un administrador.");
-
-            return UsuarioMapper.ADto(usuario);
+            {
+                throw new AutenticacionException("El usuario está desactivado. Consulte con un administrador.");
+            }
+            return UsuarioService.MapearADto(usuario);
         }
 
         private void ExigirNoBloqueado(string clave)
         {
-            if (!_intentos.TryGetValue(clave, out var intentos) || intentos.BloqueadoHasta is not DateTime hasta)
-                return;
-
-            var restante = hasta - _reloj();
-            if (restante <= TimeSpan.Zero)
+            if (!intentos.TryGetValue(clave, out IntentosLogin? registro) || registro.BloqueadoHasta == null)
             {
-                // El bloqueo venció: se empieza a contar de nuevo.
-                _intentos.Remove(clave);
                 return;
             }
 
-            var minutos = (int)Math.Ceiling(restante.TotalMinutes);
-            throw new AutenticacionException(
-                $"Demasiados intentos fallidos. Probá de nuevo en {minutos} minuto{(minutos == 1 ? "" : "s")}.");
+            TimeSpan restante = registro.BloqueadoHasta.Value - reloj();
+            if (restante <= TimeSpan.Zero)
+            {
+                // El bloqueo venció: se empieza a contar de nuevo.
+                intentos.Remove(clave);
+                return;
+            }
+
+            int minutos = (int)Math.Ceiling(restante.TotalMinutes);
+            throw new AutenticacionException("Demasiados intentos fallidos. Pruebe de nuevo en " + minutos
+                + (minutos == 1 ? " minuto." : " minutos."));
         }
 
         private void RegistrarFallo(string clave)
         {
-            var fallos = (_intentos.TryGetValue(clave, out var intentos) ? intentos.Fallos : 0) + 1;
+            IntentosLogin registro = intentos.TryGetValue(clave, out IntentosLogin? existente) ? existente : new IntentosLogin();
+            registro.Fallos++;
+            intentos[clave] = registro;
 
-            if (fallos >= IntentosPermitidos)
+            if (registro.Fallos >= Configuracion.IntentosLoginPermitidos)
             {
-                _intentos[clave] = new Intentos(fallos, _reloj() + DuracionBloqueo);
-                throw new AutenticacionException(
-                    $"Demasiados intentos fallidos. El ingreso con ese usuario quedó bloqueado por {DuracionBloqueo.TotalMinutes:0} minutos.");
+                registro.BloqueadoHasta = reloj().AddMinutes(Configuracion.MinutosBloqueoLogin);
+                throw new AutenticacionException("Demasiados intentos fallidos. El ingreso con ese usuario quedó bloqueado por "
+                    + Configuracion.MinutosBloqueoLogin + " minutos.");
             }
-
-            _intentos[clave] = new Intentos(fallos, null);
         }
+    }
 
-        private sealed record Intentos(int Fallos, DateTime? BloqueadoHasta);
+    public class IntentosLogin
+    {
+        public int Fallos { get; set; }
+
+        public DateTime? BloqueadoHasta { get; set; }
     }
 }

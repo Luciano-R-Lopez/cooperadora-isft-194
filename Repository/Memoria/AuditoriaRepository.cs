@@ -1,13 +1,19 @@
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository;
 
 namespace CooperadoraISFT94.Repository.Memoria
 {
-    public sealed class AuditoriaRepository : InMemoryRepository<Auditoria>, IAuditoriaRepository
+    public class AuditoriaRepository : RepositorioBase<Auditoria>
     {
-        private static readonly Lazy<AuditoriaRepository> _instancia = new(() => new AuditoriaRepository());
-        public static AuditoriaRepository Instancia => _instancia.Value;
+        private static readonly AuditoriaRepository instancia = new AuditoriaRepository();
 
-        internal AuditoriaRepository() : base("El registro de auditoría seleccionado no existe.") { }
+        // Interno (y no privado) solo para que los tests puedan trabajar con un repositorio vacío.
+        internal AuditoriaRepository() : base("El registro de auditoría seleccionado no existe.")
+        {
+        }
+
+        public static AuditoriaRepository ObtenerInstancia()
+        {
+            return instancia;
+        }
     }
 }

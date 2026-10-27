@@ -22,7 +22,7 @@ namespace CooperadoraISFT94.Forms.Utils
         {
             Height = 27;
             Width = 130;
-            Tema.ConColoresPropios(this);
+            Tag = Tema.ColoresPropios;
             BackColor = Tema.Superficie;
 
             _texto.BackColor = Tema.Superficie;
@@ -37,7 +37,7 @@ namespace CooperadoraISFT94.Forms.Utils
                 e.SuppressKeyPress = true;
             };
 
-            Tema.ConColoresPropios(_boton);
+            _boton.Tag = Tema.ColoresPropios;
             _boton.Dock = DockStyle.Right;
             _boton.BackColor = Tema.Superficie;
             _boton.ForeColor = Tema.Texto;

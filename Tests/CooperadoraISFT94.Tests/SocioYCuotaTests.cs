@@ -22,7 +22,7 @@ namespace CooperadoraISFT94.Tests
         {
             var otro = Crear.Socio(Categoria.Socio, "28456789");
 
-            Assert.Throws<ReglaNegocioException>(() => Crear.Socio().AsignarResponsable(otro));
+            Assert.Throws<NegocioException>(() => Crear.Socio().AsignarResponsable(otro));
         }
 
         [Fact]
@@ -31,7 +31,7 @@ namespace CooperadoraISFT94.Tests
             var responsable = Crear.Socio(Categoria.Responsable);
             var otroResponsable = Crear.Socio(Categoria.Responsable, "28456789");
 
-            Assert.Throws<ReglaNegocioException>(() => responsable.AsignarResponsable(otroResponsable));
+            Assert.Throws<NegocioException>(() => responsable.AsignarResponsable(otroResponsable));
         }
 
         [Theory]
@@ -40,27 +40,27 @@ namespace CooperadoraISFT94.Tests
         [InlineData("30.123.456")]
         public void Dni_invalido_se_rechaza(string dni)
         {
-            Assert.Throws<ReglaNegocioException>(() => Crear.Socio(dni: dni));
+            Assert.Throws<NegocioException>(() => Crear.Socio(dni: dni));
         }
 
         [Fact]
         public void Email_invalido_se_rechaza_y_vacio_se_acepta()
         {
-            Assert.Throws<ReglaNegocioException>(() => new Socio("A", "B", "30123456", "", "no-es-mail", Categoria.Socio));
-            Assert.Equal(string.Empty, new Socio("A", "B", "30123456", "", "  ", Categoria.Socio).Email);
+            Assert.Throws<NegocioException>(() => new Socio(Crear.Id(), "A", "B", "30123456", "", "no-es-mail", Categoria.Socio));
+            Assert.Equal(string.Empty, new Socio(Crear.Id(), "A", "B", "30123456", "", "  ", Categoria.Socio).Email);
         }
 
         [Fact]
         public void Cuota_nace_pendiente_y_pasa_a_pagada_una_sola_vez()
         {
-            var cuota = new Cuota(Crear.Socio(), 5000m, 2026);
+            var cuota = new Cuota(Crear.Id(), Crear.Socio(), 5000m, 2026);
             Assert.Equal(EstadoCuota.Pendiente, cuota.Estado);
 
-            cuota.CambiarEstado(EstadoCuota.Pagada);
+            cuota.MarcarPagada();
 
             Assert.True(cuota.EstaPagada);
-            Assert.Throws<ReglaNegocioException>(() => cuota.ValidarPagable());
-            Assert.Throws<ReglaNegocioException>(() => cuota.CambiarEstado(EstadoCuota.Pendiente));
+            Assert.Throws<NegocioException>(() => cuota.ValidarPagable());
+            Assert.Throws<NegocioException>(() => cuota.MarcarPagada());
         }
 
         [Theory]
@@ -68,22 +68,22 @@ namespace CooperadoraISFT94.Tests
         [InlineData(2101)]
         public void Cuota_con_anio_invalido_se_rechaza(int anio)
         {
-            Assert.Throws<ReglaNegocioException>(() => new Cuota(Crear.Socio(), 5000m, anio));
+            Assert.Throws<NegocioException>(() => new Cuota(Crear.Id(), Crear.Socio(), 5000m, anio));
         }
 
         [Fact]
         public void Detalle_de_cuota_exige_ingreso_de_cuota_social_por_el_monto_exacto()
         {
-            var cuota = new Cuota(Crear.Socio(), 5000m, 2026);
+            var cuota = new Cuota(Crear.Id(), Crear.Socio(), 5000m, 2026);
             var medio = Crear.Efectivo();
 
             var donacion = Crear.Ingreso(5000m, medio, CategoriaIngreso.Donacion);
-            Assert.Throws<ReglaNegocioException>(() => new DetalleIngresoCuota(donacion, cuota, 5000m));
+            Assert.Throws<NegocioException>(() => new DetalleIngresoCuota(Crear.Id(), donacion, cuota, 5000m, null));
 
             var cuotaSocial = Crear.Ingreso(5000m, medio, CategoriaIngreso.CuotaSocial);
-            Assert.Throws<ReglaNegocioException>(() => new DetalleIngresoCuota(cuotaSocial, cuota, 4000m));
+            Assert.Throws<NegocioException>(() => new DetalleIngresoCuota(Crear.Id(), cuotaSocial, cuota, 4000m, null));
 
-            var detalle = new DetalleIngresoCuota(cuotaSocial, cuota, 5000m);
+            var detalle = new DetalleIngresoCuota(Crear.Id(), cuotaSocial, cuota, 5000m, null);
             Assert.Same(cuota, detalle.Cuota);
         }
     }

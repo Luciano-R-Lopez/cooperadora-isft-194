@@ -1,64 +1,53 @@
-using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Service;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Controller
 {
-    /// <summary>Opciones de los desplegables (medios de pago, motivos y grupos de egreso) y su mantenimiento por el administrador.</summary>
+    // Opciones de los desplegables y su mantenimiento por el administrador.
     public class CatalogoController : BaseController
     {
-        private readonly ICatalogoService _catalogos;
+        private readonly CatalogoService servicio;
 
-        public CatalogoController() : this(CatalogoService.Instancia, SesionActual.Instancia) { }
-
-        public CatalogoController(ICatalogoService catalogos, SesionActual sesion) : base(sesion)
+        public CatalogoController()
         {
-            _catalogos = catalogos;
+            servicio = new CatalogoService();
         }
 
-        public IReadOnlyList<MedioPagoDto> ObtenerMediosPago(bool incluirInactivos = false)
+        public List<ItemCatalogoDTO> ObtenerMediosPago(bool incluirInactivos)
         {
-            ExigirAlgunRol(Rol.Operador, Rol.Contador);
-            return _catalogos.ObtenerMediosPago(incluirInactivos);
+            ExigirRol(Rol.Operador, Rol.Contador);
+            return servicio.ObtenerItems(TipoCatalogo.MedioPago, incluirInactivos);
         }
 
-        public IReadOnlyList<MotivoEgresoDto> ObtenerMotivosEgreso()
+        public List<ItemCatalogoDTO> ObtenerMotivosEgreso()
         {
             ExigirRol(Rol.Contador);
-            return _catalogos.ObtenerMotivosEgreso();
+            return servicio.ObtenerItems(TipoCatalogo.MotivoEgreso, false);
         }
 
-        /// <param name="incluirInactivos">True para filtrar movimientos ya registrados.</param>
-        public IReadOnlyList<GrupoEgresoDto> ObtenerGruposEgreso(bool incluirInactivos = false)
+        public List<ItemCatalogoDTO> ObtenerGruposEgreso(bool incluirInactivos)
         {
             ExigirRol(Rol.Contador);
-            return _catalogos.ObtenerGruposEgreso(incluirInactivos);
+            return servicio.ObtenerItems(TipoCatalogo.GrupoEgreso, incluirInactivos);
         }
 
-        public IReadOnlyList<ItemCatalogoDto> ObtenerItems(TipoCatalogo tipo)
+        public List<ItemCatalogoDTO> ObtenerItems(TipoCatalogo tipo)
         {
             ExigirRol(Rol.Administrador);
-            return _catalogos.ObtenerItems(tipo);
+            return servicio.ObtenerItems(tipo, true);
         }
 
-        public ItemCatalogoDto Agregar(TipoCatalogo tipo, string nombre)
+        public ItemCatalogoDTO Guardar(ItemCatalogoDTO dto)
         {
             ExigirRol(Rol.Administrador);
-            return _catalogos.Agregar(tipo, nombre, UsuarioActualId);
+            return servicio.Guardar(dto, UsuarioActualId);
         }
 
-        public ItemCatalogoDto Renombrar(TipoCatalogo tipo, int id, string nombre)
+        public ItemCatalogoDTO CambiarEstado(TipoCatalogo tipo, int id, bool activo)
         {
             ExigirRol(Rol.Administrador);
-            return _catalogos.Renombrar(tipo, id, nombre, UsuarioActualId);
-        }
-
-        public ItemCatalogoDto CambiarEstado(TipoCatalogo tipo, int id, bool activo)
-        {
-            ExigirRol(Rol.Administrador);
-            return _catalogos.CambiarEstado(tipo, id, activo, UsuarioActualId);
+            return servicio.CambiarEstado(tipo, id, activo, UsuarioActualId);
         }
     }
 }

@@ -1,16 +1,19 @@
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository;
 
 namespace CooperadoraISFT94.Repository.Memoria
 {
-    public sealed class DetalleIngresoCuotaRepository : InMemoryRepository<DetalleIngresoCuota>, IDetalleIngresoCuotaRepository
+    public class DetalleIngresoCuotaRepository : RepositorioBase<DetalleIngresoCuota>
     {
-        private static readonly Lazy<DetalleIngresoCuotaRepository> _instancia = new(() => new DetalleIngresoCuotaRepository());
-        public static DetalleIngresoCuotaRepository Instancia => _instancia.Value;
+        private static readonly DetalleIngresoCuotaRepository instancia = new DetalleIngresoCuotaRepository();
 
-        internal DetalleIngresoCuotaRepository() : base("El detalle de ingreso seleccionado no existe.") { }
+        // Interno (y no privado) solo para que los tests puedan trabajar con un repositorio vacío.
+        internal DetalleIngresoCuotaRepository() : base("El detalle del cobro seleccionado no existe.")
+        {
+        }
 
-        public IReadOnlyList<DetalleIngresoCuota> ObtenerPorIngreso(Ingreso ingreso) =>
-            Items.Where(d => ReferenceEquals(d.Ingreso, ingreso)).ToList();
+        public static DetalleIngresoCuotaRepository ObtenerInstancia()
+        {
+            return instancia;
+        }
     }
 }

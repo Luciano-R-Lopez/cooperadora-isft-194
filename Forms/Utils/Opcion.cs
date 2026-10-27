@@ -1,8 +1,21 @@
 namespace CooperadoraISFT94.Forms.Utils
 {
-    /// <summary>Elemento de desplegable con un texto para mostrar y un valor asociado (por ejemplo, "Todos" = null).</summary>
-    public record Opcion<T>(string Texto, T Valor)
+    // Elemento de un desplegable con un texto para mostrar y un valor (por ejemplo, "Todos" con valor null).
+    public class Opcion<T>
     {
-        public override string ToString() => Texto;
+        public Opcion(string texto, T valor)
+        {
+            Texto = texto;
+            Valor = valor;
+        }
+
+        public string Texto { get; private set; }
+
+        public T Valor { get; private set; }
+
+        public override string ToString()
+        {
+            return Texto;
+        }
     }
 }

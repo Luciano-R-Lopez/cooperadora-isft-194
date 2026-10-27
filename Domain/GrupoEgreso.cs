@@ -1,8 +1,10 @@
 namespace CooperadoraISFT94.Domain
 {
-    /// <summary>A quién corresponde un gasto (estudiantes, administración, otros). Es independiente del motivo.</summary>
+    // A quién corresponde un gasto (estudiantes, administración, otros). Es independiente del motivo.
     public class GrupoEgreso : ItemCatalogo
     {
-        public GrupoEgreso(string nombre) : base(nombre, "grupo de egreso") { }
+        public GrupoEgreso(int id, string nombre) : base(id, nombre, "grupo de egreso")
+        {
+        }
     }
 }

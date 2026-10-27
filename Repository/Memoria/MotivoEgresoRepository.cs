@@ -1,13 +1,19 @@
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository;
 
 namespace CooperadoraISFT94.Repository.Memoria
 {
-    public sealed class MotivoEgresoRepository : InMemoryRepository<MotivoEgreso>, IMotivoEgresoRepository
+    public class MotivoEgresoRepository : RepositorioBase<MotivoEgreso>
     {
-        private static readonly Lazy<MotivoEgresoRepository> _instancia = new(() => new MotivoEgresoRepository());
-        public static MotivoEgresoRepository Instancia => _instancia.Value;
+        private static readonly MotivoEgresoRepository instancia = new MotivoEgresoRepository();
 
-        internal MotivoEgresoRepository() : base("El motivo de egreso seleccionado no existe.") { }
+        // Interno (y no privado) solo para que los tests puedan trabajar con un repositorio vacío.
+        internal MotivoEgresoRepository() : base("El motivo de egreso seleccionado no existe.")
+        {
+        }
+
+        public static MotivoEgresoRepository ObtenerInstancia()
+        {
+            return instancia;
+        }
     }
 }

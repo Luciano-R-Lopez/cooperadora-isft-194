@@ -1,26 +1,41 @@
-using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 
 namespace CooperadoraISFT94.Domain
 {
     public class Egreso : Movimiento
     {
-        public Egreso(Usuario usuario, DateTime fecha, decimal monto, MedioPago medioPago, MotivoEgreso motivo,
-                      GrupoEgreso grupo)
-            : base(usuario, fecha, monto, medioPago)
+        // El grupo se elige aparte del motivo: un mismo motivo (por ejemplo, un arreglo de computadora)
+        // puede ser un gasto de los estudiantes o de la administración.
+        public Egreso(int id, Usuario usuario, DateTime fecha, decimal monto, MedioPago medioPago, MotivoEgreso motivo,
+            GrupoEgreso grupo)
+            : base(id, usuario, fecha, monto, medioPago)
         {
-            Motivo = motivo ?? throw new ReglaNegocioException("El motivo del egreso es obligatorio.");
-            Grupo = grupo ?? throw new ReglaNegocioException("El grupo del egreso es obligatorio.");
+            if (motivo == null)
+            {
+                throw new NegocioException("El motivo del egreso es obligatorio.");
+            }
+            if (grupo == null)
+            {
+                throw new NegocioException("El grupo del egreso es obligatorio.");
+            }
+            Motivo = motivo;
+            Grupo = grupo;
         }
 
-        public MotivoEgreso Motivo { get; }
+        public MotivoEgreso Motivo { get; private set; }
 
-        /// <summary>A quién corresponde el gasto. Se elige aparte del motivo: un mismo motivo puede ser de distintos grupos.</summary>
-        public GrupoEgreso Grupo { get; }
+        public GrupoEgreso Grupo { get; private set; }
 
-        public override TipoMovimiento Tipo => TipoMovimiento.Egreso;
+        public override TipoMovimiento Tipo
+        {
+            get { return TipoMovimiento.Egreso; }
+        }
 
-        public override string Clasificacion => Motivo.Nombre;
+        public override string Clasificacion
+        {
+            get { return Motivo.Nombre; }
+        }
 
         protected override void Aplicar(Caja caja, CajaTotalMedioPago totalMedioPago)
         {

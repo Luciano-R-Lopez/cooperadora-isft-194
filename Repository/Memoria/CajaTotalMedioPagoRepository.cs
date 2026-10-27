@@ -1,19 +1,19 @@
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository;
 
 namespace CooperadoraISFT94.Repository.Memoria
 {
-    public sealed class CajaTotalMedioPagoRepository : InMemoryRepository<CajaTotalMedioPago>, ICajaTotalMedioPagoRepository
+    public class CajaTotalMedioPagoRepository : RepositorioBase<CajaTotalMedioPago>
     {
-        private static readonly Lazy<CajaTotalMedioPagoRepository> _instancia = new(() => new CajaTotalMedioPagoRepository());
-        public static CajaTotalMedioPagoRepository Instancia => _instancia.Value;
+        private static readonly CajaTotalMedioPagoRepository instancia = new CajaTotalMedioPagoRepository();
 
-        internal CajaTotalMedioPagoRepository() : base("El total por medio de pago seleccionado no existe.") { }
+        // Interno (y no privado) solo para que los tests puedan trabajar con un repositorio vacío.
+        internal CajaTotalMedioPagoRepository() : base("El total por medio de pago seleccionado no existe.")
+        {
+        }
 
-        public IReadOnlyList<CajaTotalMedioPago> ObtenerPorCaja(Caja caja) =>
-            Items.Where(t => ReferenceEquals(t.Caja, caja)).ToList();
-
-        public CajaTotalMedioPago? Obtener(Caja caja, MedioPago medioPago) =>
-            Items.FirstOrDefault(t => ReferenceEquals(t.Caja, caja) && ReferenceEquals(t.MedioPago, medioPago));
+        public static CajaTotalMedioPagoRepository ObtenerInstancia()
+        {
+            return instancia;
+        }
     }
 }

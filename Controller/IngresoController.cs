@@ -1,26 +1,22 @@
-using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Service;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Controller
 {
     public class IngresoController : BaseController
     {
-        private readonly IIngresoService _ingresos;
+        private readonly IngresoService servicio;
 
-        public IngresoController() : this(IngresoService.Instancia, SesionActual.Instancia) { }
-
-        public IngresoController(IIngresoService ingresos, SesionActual sesion) : base(sesion)
+        public IngresoController()
         {
-            _ingresos = ingresos;
+            servicio = new IngresoService();
         }
 
-        public IngresoDto Registrar(IngresoCrearDto dto)
+        public IngresoDTO Registrar(IngresoDTO dto)
         {
             ExigirRol(Rol.Operador);
-            return _ingresos.Registrar(dto, UsuarioActualId);
+            return servicio.Registrar(dto, UsuarioActualId);
         }
     }
 }

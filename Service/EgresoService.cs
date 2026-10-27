@@ -1,57 +1,67 @@
-using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository.Memoria;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Repository;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Service
 {
-    public sealed class EgresoService : IEgresoService
+    public class EgresoService
     {
-        private static readonly Lazy<EgresoService> _instancia = new(() =>
-            new EgresoService(UsuarioRepository.Instancia, MedioPagoRepository.Instancia,
-                              MotivoEgresoRepository.Instancia, GrupoEgresoRepository.Instancia,
-                              MovimientoRegistrador.Instancia));
-        public static EgresoService Instancia => _instancia.Value;
+        private readonly IRepository<Usuario> usuarioRepositorio;
+        private readonly IRepository<MedioPago> medioRepositorio;
+        private readonly IRepository<MotivoEgreso> motivoRepositorio;
+        private readonly IRepository<GrupoEgreso> grupoRepositorio;
+        private readonly MovimientoRegistrador registrador;
 
-        private readonly IUsuarioRepository _usuarios;
-        private readonly IMedioPagoRepository _medios;
-        private readonly IMotivoEgresoRepository _motivos;
-        private readonly IGrupoEgresoRepository _grupos;
-        private readonly IMovimientoRegistrador _registrador;
-
-        private readonly Func<DateTime> _reloj;
-
-        internal EgresoService(IUsuarioRepository usuarios, IMedioPagoRepository medios,
-                               IMotivoEgresoRepository motivos, IGrupoEgresoRepository grupos,
-                               IMovimientoRegistrador registrador,
-                               Func<DateTime>? reloj = null)
+        public EgresoService()
+            : this(Repositorios.Usuarios, Repositorios.MediosPago, Repositorios.MotivosEgreso, Repositorios.GruposEgreso,
+                new MovimientoRegistrador())
         {
-            _reloj = reloj ?? (() => DateTime.Now);
-            _usuarios = usuarios;
-            _medios = medios;
-            _motivos = motivos;
-            _grupos = grupos;
-            _registrador = registrador;
         }
 
-        public EgresoDto Registrar(EgresoCrearDto dto, int usuarioId)
+        public EgresoService(IRepository<Usuario> usuarioRepositorio, IRepository<MedioPago> medioRepositorio,
+            IRepository<MotivoEgreso> motivoRepositorio, IRepository<GrupoEgreso> grupoRepositorio,
+            MovimientoRegistrador registrador)
         {
-            ArgumentNullException.ThrowIfNull(dto);
+            this.usuarioRepositorio = usuarioRepositorio;
+            this.medioRepositorio = medioRepositorio;
+            this.motivoRepositorio = motivoRepositorio;
+            this.grupoRepositorio = grupoRepositorio;
+            this.registrador = registrador;
+        }
 
-            // Monto lo valida el Egreso; acá solo se buscan las entidades relacionadas.
-            var usuario = _usuarios.ObtenerExistente(usuarioId);
-            var medio = _medios.ObtenerExistente(dto.MedioPagoId);
+        public EgresoDTO Registrar(EgresoDTO dto, int usuarioId)
+        {
+            if (dto == null)
+            {
+                throw new ArgumentException("Los datos del egreso son obligatorios.");
+            }
+
+            Usuario usuario = usuarioRepositorio.ObtenerExistente(usuarioId);
+            MedioPago medio = medioRepositorio.ObtenerExistente(dto.MedioPagoId);
             medio.ExigirActivo();
-            var motivo = _motivos.ObtenerExistente(dto.MotivoEgresoId);
+            MotivoEgreso motivo = motivoRepositorio.ObtenerExistente(dto.MotivoEgresoId);
             motivo.ExigirActivo();
-            var grupo = _grupos.ObtenerExistente(dto.GrupoEgresoId);
+            GrupoEgreso grupo = grupoRepositorio.ObtenerExistente(dto.GrupoEgresoId);
             grupo.ExigirActivo();
 
-            var egreso = new Egreso(usuario, _reloj(), dto.Monto, medio, motivo, grupo);
-            _registrador.Registrar(egreso);
+            Egreso egreso = new Egreso(registrador.ObtenerProximoId(), usuario, registrador.Ahora(), dto.Monto, medio, motivo, grupo);
+            registrador.Registrar(egreso);
+            return MapearADto(egreso);
+        }
 
-            return EgresoMapper.ADto(egreso);
+        private static EgresoDTO MapearADto(Egreso egreso)
+        {
+            EgresoDTO dto = new EgresoDTO();
+            dto.Id = egreso.Id;
+            dto.Fecha = egreso.Fecha;
+            dto.Monto = egreso.Monto;
+            dto.MotivoEgresoId = egreso.Motivo.Id;
+            dto.Motivo = egreso.Motivo.Nombre;
+            dto.GrupoEgresoId = egreso.Grupo.Id;
+            dto.Grupo = egreso.Grupo.Nombre;
+            dto.MedioPagoId = egreso.MedioPago.Id;
+            dto.MedioPago = egreso.MedioPago.Nombre;
+            return dto;
         }
     }
 }

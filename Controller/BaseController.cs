@@ -1,30 +1,29 @@
 using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 
 namespace CooperadoraISFT94.Controller
 {
-    /// <summary>Base de los controllers de cada módulo: centraliza el control de permisos por rol.</summary>
+    // Controla los permisos: cada acción pide uno o más roles y alcanza con que el usuario tenga alguno.
     public abstract class BaseController
     {
-        protected SesionActual Sesion { get; }
-
-        protected BaseController(SesionActual sesion)
+        protected SesionActual Sesion
         {
-            Sesion = sesion;
+            get { return SesionActual.Instancia; }
         }
 
-        /// <summary>Id del usuario logueado. Solo usar después de pasar por ExigirRol / ExigirAlgunRol.</summary>
-        protected int UsuarioActualId => Sesion.Usuario?.Id ?? 0;
+        // Id del usuario que inició sesión. Se usa después de ExigirRol.
+        protected int UsuarioActualId
+        {
+            get { return Sesion.Usuario?.Id ?? 0; }
+        }
 
-        /// <summary>Lanza AccesoDenegadoException si el usuario logueado no tiene el rol pedido.</summary>
-        protected void ExigirRol(Rol rol) => ExigirAlgunRol(rol);
-
-        /// <summary>Igual que ExigirRol, pero alcanza con tener cualquiera de los roles indicados.</summary>
-        protected void ExigirAlgunRol(params Rol[] roles)
+        protected void ExigirRol(params Rol[] roles)
         {
             if (!roles.Any(Sesion.TieneRol))
+            {
                 throw new AccesoDenegadoException();
+            }
         }
     }
 }

@@ -1,78 +1,80 @@
 using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 
 namespace CooperadoraISFT94.Domain
 {
     public class Usuario : Persona
     {
-        private string _passwordHash = string.Empty;
-        private SortedSet<Rol> _roles;
+        private string nombreUsuario = string.Empty;
+        private string passwordHash = string.Empty;
+        private SortedSet<Rol> roles = new SortedSet<Rol>();
 
-        /// <param name="passwordHash">Hash PBKDF2: la contraseña en texto plano nunca llega al dominio.</param>
-        /// <param name="roles">Uno o más roles: un usuario puede ser, por ejemplo, operador y contador a la vez.</param>
-        public Usuario(string nombreUsuario, string nombre, string apellido, string passwordHash, bool activo,
-                       params IEnumerable<Rol> roles)
-            : base(nombre, apellido)
+        // La contraseña llega convertida en hash: en texto plano nunca llega al dominio.
+        // Un usuario puede tener varios roles (por ejemplo, operador y contador a la vez).
+        public Usuario(int id, string nombreUsuario, string nombre, string apellido, string passwordHash, bool activo,
+            params IEnumerable<Rol> roles)
+            : base(id, nombre, apellido)
         {
-            nombreUsuario = (nombreUsuario ?? string.Empty).Trim();
-            if (!Validaciones.EsNombreUsuarioValido(nombreUsuario))
-                throw new ReglaNegocioException(
-                    "El nombre de usuario debe tener entre 3 y 30 caracteres: letras, números, punto, guion o guion bajo.");
-
             NombreUsuario = nombreUsuario;
-            CambiarPasswordHash(passwordHash);
+            PasswordHash = passwordHash;
             Activo = activo;
-            _roles = ValidarRoles(roles);
+            AsignarRoles(roles);
         }
 
-        /// <summary>Identifica al usuario en el login; no se puede cambiar.</summary>
-        public string NombreUsuario { get; private set; }
-
-        public string PasswordHash => _passwordHash;
-
-        /// <summary>Roles del usuario, sin repetir y en el orden del enum (Administrador, Operador, Contador).</summary>
-        public IReadOnlyCollection<Rol> Roles => _roles;
-
-        public bool Activo { get; private set; }
-
-        public void CambiarPasswordHash(string passwordHash)
+        // Identifica al usuario en el inicio de sesión; no se puede cambiar.
+        public string NombreUsuario
         {
-            if (string.IsNullOrWhiteSpace(passwordHash))
-                throw new ReglaNegocioException("La contraseña del usuario no puede estar vacía.");
-            _passwordHash = passwordHash;
+            get { return nombreUsuario; }
+            private set
+            {
+                string texto = (value ?? string.Empty).Trim();
+                if (!Validaciones.EsNombreUsuarioValido(texto))
+                {
+                    throw new NegocioException("El nombre de usuario debe tener entre 3 y 30 caracteres: letras, números, punto, guion o guion bajo.");
+                }
+                nombreUsuario = texto;
+            }
         }
 
-        public void Activar() => Activo = true;
-
-        public void Desactivar() => Activo = false;
-
-        public bool TieneRol(Rol rol) => _roles.Contains(rol);
-
-        /// <summary>
-        /// Cambia nombre, apellido, estado y roles juntos: primero valida todo y recién después modifica,
-        /// así si algún dato es inválido el usuario queda sin cambios.
-        /// </summary>
-        public void ActualizarDatos(string nombre, string apellido, bool activo, params IEnumerable<Rol> roles)
+        public string PasswordHash
         {
-            var nombreValido = Validaciones.ExigirTexto(nombre, "nombre", LargoMaximoNombre);
-            var apellidoValido = Validaciones.ExigirTexto(apellido, "apellido", LargoMaximoNombre);
-            var rolesValidos = ValidarRoles(roles);
-
-            Nombre = nombreValido;
-            Apellido = apellidoValido;
-            Activo = activo;
-            _roles = rolesValidos;
+            get { return passwordHash; }
+            set
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    throw new NegocioException("La contraseña del usuario no puede estar vacía.");
+                }
+                passwordHash = value;
+            }
         }
 
-        private static SortedSet<Rol> ValidarRoles(IEnumerable<Rol>? roles)
+        public bool Activo { get; set; }
+
+        // Sin repetir y en el orden del enum (Administrador, Operador, Contador).
+        public IReadOnlyCollection<Rol> Roles
         {
-            var validos = new SortedSet<Rol>(roles ?? Enumerable.Empty<Rol>());
+            get { return roles; }
+        }
+
+        public void AsignarRoles(IEnumerable<Rol>? nuevosRoles)
+        {
+            SortedSet<Rol> validos = new SortedSet<Rol>(nuevosRoles ?? Enumerable.Empty<Rol>());
             if (validos.Count == 0)
-                throw new ReglaNegocioException("El usuario tiene que tener al menos un rol.");
-            if (validos.Any(r => !Enum.IsDefined(r)))
-                throw new ReglaNegocioException("El rol no es válido.");
-            return validos;
+            {
+                throw new NegocioException("El usuario tiene que tener al menos un rol.");
+            }
+            if (validos.Any(rol => !Enum.IsDefined(rol)))
+            {
+                throw new NegocioException("El rol no es válido.");
+            }
+            roles = validos;
+        }
+
+        public bool TieneRol(Rol rol)
+        {
+            return roles.Contains(rol);
         }
     }
 }

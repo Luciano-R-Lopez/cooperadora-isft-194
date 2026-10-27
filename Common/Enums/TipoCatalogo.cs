@@ -1,10 +1,11 @@
+using System.ComponentModel;
+
 namespace CooperadoraISFT94.Common.Enums
 {
-    /// <summary>Catálogos que el administrador puede mantener desde la aplicación.</summary>
     public enum TipoCatalogo
     {
-        MedioPago,
-        MotivoEgreso,
-        GrupoEgreso
+        [Description("Medios de pago")] MedioPago,
+        [Description("Motivos de egreso")] MotivoEgreso,
+        [Description("Grupos de egreso")] GrupoEgreso
     }
 }

@@ -1,62 +1,53 @@
-using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Service;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Controller
 {
     public class SocioController : BaseController
     {
-        private readonly ISocioService _socios;
+        private readonly SocioService servicio;
 
-        public SocioController() : this(SocioService.Instancia, SesionActual.Instancia) { }
-
-        public SocioController(ISocioService socios, SesionActual sesion) : base(sesion)
+        public SocioController()
         {
-            _socios = socios;
+            servicio = new SocioService();
         }
 
-        public SocioDto Registrar(SocioCrearDto dto)
+        // Crea o edita según dto.Id; devuelve el id del socio guardado.
+        public int Guardar(SocioDTO dto)
         {
             ExigirRol(Rol.Operador);
-            return _socios.Registrar(dto, UsuarioActualId);
+            return servicio.Guardar(dto, UsuarioActualId);
         }
 
-        public SocioDto Editar(SocioEditarDto dto)
+        public SocioDTO CambiarEstado(int socioId, bool activo)
         {
             ExigirRol(Rol.Operador);
-            return _socios.Editar(dto, UsuarioActualId);
+            return servicio.CambiarEstado(socioId, activo, UsuarioActualId);
         }
 
-        public SocioDto CambiarEstado(int socioId, bool activo)
+        public List<SocioDTO> ObtenerTodos()
         {
             ExigirRol(Rol.Operador);
-            return _socios.CambiarEstado(socioId, activo, UsuarioActualId);
+            return servicio.ObtenerTodos();
         }
 
-        public SocioDto ObtenerPorId(int id)
+        public SocioDTO ObtenerPorId(int id)
         {
             ExigirRol(Rol.Operador);
-            return _socios.ObtenerPorId(id);
+            return servicio.ObtenerPorId(id);
         }
 
-        public IReadOnlyList<SocioDto> ObtenerResponsables()
+        public List<SocioDTO> ObtenerResponsables()
         {
             ExigirRol(Rol.Operador);
-            return _socios.ObtenerResponsables();
+            return servicio.ObtenerResponsables();
         }
 
-        public IReadOnlyList<SocioDto> ObtenerACargo(int responsableId)
+        public List<SocioDTO> ObtenerACargo(int responsableId)
         {
             ExigirRol(Rol.Operador);
-            return _socios.ObtenerACargo(responsableId);
-        }
-
-        public IReadOnlyList<SocioDto> Buscar(string? filtro)
-        {
-            ExigirRol(Rol.Operador);
-            return _socios.Buscar(filtro);
+            return servicio.ObtenerACargo(responsableId);
         }
     }
 }

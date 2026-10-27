@@ -1,9 +1,7 @@
 namespace CooperadoraISFT94.Common.Exceptions
 {
-    /// <summary>
-    /// Base de los errores que se le muestran al usuario (reglas incumplidas, datos que no existen, permisos).
-    /// Cualquier otra excepción es un error de programación y no debe atraparse en las vistas.
-    /// </summary>
+    // Error que se le muestra al usuario: una regla del negocio que no se cumple (dato inválido, repetido, etc.).
+    // Cualquier otra excepción es un error de programación y la atrapa Program.
     public class NegocioException : Exception
     {
         public NegocioException(string mensaje) : base(mensaje)

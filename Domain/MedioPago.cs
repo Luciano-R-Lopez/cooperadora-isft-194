@@ -1,8 +1,10 @@
 namespace CooperadoraISFT94.Domain
 {
-    /// <summary>Forma en que se cobra o se paga (efectivo, transferencia...).</summary>
+    // Forma en que entra o sale el dinero (efectivo, transferencia, etc.).
     public class MedioPago : ItemCatalogo
     {
-        public MedioPago(string nombre) : base(nombre, "medio de pago") { }
+        public MedioPago(int id, string nombre) : base(id, nombre, "medio de pago")
+        {
+        }
     }
 }

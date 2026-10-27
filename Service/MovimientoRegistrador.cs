@@ -1,82 +1,109 @@
-using CooperadoraISFT94.Common.Exceptions;
+using CooperadoraISFT94.Common;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository.Memoria;
 using CooperadoraISFT94.Repository;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Service
 {
-    public sealed class MovimientoRegistrador : IMovimientoRegistrador
+    // Lo comparten los servicios que registran o anulan movimientos (ingresos, egresos y cobro de cuotas):
+    // aplica el movimiento a la caja abierta y a su total por medio de pago, y lo audita.
+    public class MovimientoRegistrador
     {
-        private static readonly Lazy<MovimientoRegistrador> _instancia = new(() =>
-            new MovimientoRegistrador(MovimientoRepository.Instancia, CajaRepository.Instancia,
-                                      CajaTotalMedioPagoRepository.Instancia, AuditoriaService.Instancia));
-        public static MovimientoRegistrador Instancia => _instancia.Value;
+        private readonly IRepository<Movimiento> repositorio;
+        private readonly IRepository<Caja> cajaRepositorio;
+        private readonly IRepository<CajaTotalMedioPago> totalRepositorio;
+        private readonly AuditoriaService auditoria;
+        private readonly Func<DateTime> reloj;
 
-        private readonly IMovimientoRepository _movimientos;
-        private readonly ICajaRepository _cajas;
-        private readonly ICajaTotalMedioPagoRepository _totales;
-        private readonly IAuditoriaService _auditoria;
-
-        private readonly Func<DateTime> _reloj;
-
-        internal MovimientoRegistrador(IMovimientoRepository movimientos, ICajaRepository cajas,
-                                       ICajaTotalMedioPagoRepository totales, IAuditoriaService auditoria,
-                                       Func<DateTime>? reloj = null)
+        public MovimientoRegistrador()
+            : this(Repositorios.Movimientos, Repositorios.Cajas, Repositorios.TotalesMedioPago, new AuditoriaService())
         {
-            _reloj = reloj ?? (() => DateTime.Now);
-            _movimientos = movimientos;
-            _cajas = cajas;
-            _totales = totales;
-            _auditoria = auditoria;
+        }
+
+        public MovimientoRegistrador(IRepository<Movimiento> repositorio, IRepository<Caja> cajaRepositorio,
+            IRepository<CajaTotalMedioPago> totalRepositorio, AuditoriaService auditoria, Func<DateTime>? reloj = null)
+        {
+            this.repositorio = repositorio;
+            this.cajaRepositorio = cajaRepositorio;
+            this.totalRepositorio = totalRepositorio;
+            this.auditoria = auditoria;
+            this.reloj = reloj ?? (() => DateTime.Now);
+        }
+
+        public int ObtenerProximoId()
+        {
+            return repositorio.ObtenerProximoId();
+        }
+
+        public DateTime Ahora()
+        {
+            return reloj();
         }
 
         public void Registrar(Movimiento movimiento)
         {
-            ArgumentNullException.ThrowIfNull(movimiento);
+            Caja? caja = cajaRepositorio.ObtenerTodos().FirstOrDefault(c => c.EstaAbierta);
+            if (caja == null)
+            {
+                throw new NegocioException(Caja.MensajeSinCajaAbierta);
+            }
 
-            var caja = _cajas.ObtenerActiva()
-                ?? throw new ReglaNegocioException(Caja.MensajeSinCajaAbierta);
+            CajaTotalMedioPago? total = BuscarTotal(caja, movimiento.MedioPago);
+            bool totalEsNuevo = total == null;
+            if (total == null)
+            {
+                total = new CajaTotalMedioPago(totalRepositorio.ObtenerProximoId(), caja, movimiento.MedioPago);
+            }
 
-            var total = _totales.Obtener(caja, movimiento.MedioPago);
-            var totalEsNuevo = total is null;
-            total ??= new CajaTotalMedioPago(caja, movimiento.MedioPago);
-
-            // El movimiento valida y modifica caja y total en memoria; recién después se persiste todo.
+            // El movimiento valida y modifica caja y total; recién después se guarda todo.
             movimiento.AfectarCaja(caja, total);
-
-            _movimientos.Agregar(movimiento);
+            repositorio.Agregar(movimiento);
             if (totalEsNuevo)
-                _totales.Agregar(total);
+            {
+                totalRepositorio.Agregar(total);
+            }
             else
-                _totales.Actualizar(total);
-            _cajas.Actualizar(caja);
+            {
+                totalRepositorio.Actualizar(total);
+            }
+            cajaRepositorio.Actualizar(caja);
 
-            _auditoria.Registrar(movimiento.Usuario.Id, AccionAuditoria.Alta, movimiento.GetType().Name, movimiento.Id,
-                                 movimiento is Egreso egreso
-                                     ? $"{egreso.Clasificacion} - {egreso.Grupo.Nombre} - {egreso.MedioPago.Nombre} - {egreso.Monto:C2}"
-                                     : $"{movimiento.Clasificacion} - {movimiento.MedioPago.Nombre} - {movimiento.Monto:C2}");
+            string detalle = movimiento.Clasificacion + " - ";
+            if (movimiento is Egreso egreso)
+            {
+                detalle += egreso.Grupo.Nombre + " - ";
+            }
+            detalle += movimiento.MedioPago.Nombre + " - " + Formato.Monto(movimiento.Monto);
+            auditoria.Registrar(movimiento.Usuario.Id, AccionAuditoria.Alta, movimiento.GetType().Name, movimiento.Id, detalle);
         }
 
         public void Anular(Movimiento movimiento, Usuario usuario, string motivo)
         {
-            ArgumentNullException.ThrowIfNull(movimiento);
+            if (movimiento.Caja == null)
+            {
+                throw new NegocioException("El movimiento no se registró en ninguna caja.");
+            }
+            CajaTotalMedioPago? total = BuscarTotal(movimiento.Caja, movimiento.MedioPago);
+            if (total == null)
+            {
+                throw new NoEncontradoException("No se encontró el total por medio de pago del movimiento.");
+            }
 
-            var caja = movimiento.Caja
-                ?? throw new ReglaNegocioException("El movimiento no se registró en ninguna caja.");
-            var total = _totales.Obtener(caja, movimiento.MedioPago)
-                ?? throw new NoEncontradoException("No se encontró el total por medio de pago del movimiento.");
+            // El movimiento valida (caja abierta, no anulado, saldo) y revierte; después se guarda.
+            movimiento.Anular(usuario, reloj(), motivo, total);
+            repositorio.Actualizar(movimiento);
+            totalRepositorio.Actualizar(total);
+            cajaRepositorio.Actualizar(movimiento.Caja);
 
-            // El movimiento valida (caja abierta, no anulado, saldo) y revierte en memoria; después se persiste.
-            movimiento.Anular(usuario, _reloj(), motivo, total);
+            auditoria.Registrar(usuario.Id, AccionAuditoria.Baja, movimiento.GetType().Name, movimiento.Id,
+                "Anulado (" + Formato.Monto(movimiento.Monto) + "): " + movimiento.MotivoAnulacion);
+        }
 
-            _movimientos.Actualizar(movimiento);
-            _totales.Actualizar(total);
-            _cajas.Actualizar(caja);
-
-            _auditoria.Registrar(usuario.Id, AccionAuditoria.Baja, movimiento.GetType().Name, movimiento.Id,
-                                 $"Anulado ({movimiento.Monto:C2}): {movimiento.MotivoAnulacion}");
+        private CajaTotalMedioPago? BuscarTotal(Caja caja, MedioPago medio)
+        {
+            return totalRepositorio.ObtenerTodos().FirstOrDefault(t =>
+                ReferenceEquals(t.Caja, caja) && ReferenceEquals(t.MedioPago, medio));
         }
     }
 }

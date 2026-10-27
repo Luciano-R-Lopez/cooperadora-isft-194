@@ -1,22 +1,25 @@
 using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 
 namespace CooperadoraISFT94.Domain
 {
-    public class Caja : Entidad
+    public class Caja : IEntidad
     {
         public const string MensajeSinCajaAbierta =
             "No hay una caja abierta. El contador debe abrirla antes de registrar movimientos.";
 
-        /// <summary>Una caja nace abierta y su monto total arranca en el monto inicial.</summary>
-        public Caja(decimal montoInicial, DateTime fechaApertura)
+        // Una caja nace abierta y su monto total arranca en el monto inicial.
+        public Caja(int id, decimal montoInicial, DateTime fechaApertura)
         {
+            Id = id;
             MontoInicial = Validaciones.ExigirMontoNoNegativo(montoInicial, "monto inicial");
             MontoTotal = MontoInicial;
             FechaApertura = fechaApertura;
             Estado = EstadoCaja.Abierta;
         }
+
+        public int Id { get; private set; }
 
         public DateTime FechaApertura { get; private set; }
 
@@ -24,49 +27,55 @@ namespace CooperadoraISFT94.Domain
 
         public decimal MontoInicial { get; private set; }
 
-        /// <summary>
-        /// Con la caja abierta es el monto que debería haber (inicial + ingresos - egresos).
-        /// Al cerrarla pasa a ser el monto que se contó realmente.
-        /// </summary>
+        // Con la caja abierta es lo que debería haber (inicial + ingresos - egresos).
+        // Al cerrarla pasa a ser lo que se contó realmente.
         public decimal MontoTotal { get; private set; }
 
         public EstadoCaja Estado { get; private set; }
 
-        public bool EstaAbierta => Estado == EstadoCaja.Abierta;
+        public bool EstaAbierta
+        {
+            get { return Estado == EstadoCaja.Abierta; }
+        }
 
-        /// <summary>Los movimientos solo se pueden registrar en una caja abierta.</summary>
         public void ExigirAbierta()
         {
             if (!EstaAbierta)
-                throw new ReglaNegocioException(MensajeSinCajaAbierta);
+            {
+                throw new NegocioException(MensajeSinCajaAbierta);
+            }
         }
 
-        /// <summary>Suma un ingreso al monto total.</summary>
         public void Acreditar(decimal monto)
         {
             ExigirAbierta();
             MontoTotal += Validaciones.ExigirMontoPositivo(monto, "monto");
         }
 
-        /// <summary>Resta un egreso del monto total. No se puede sacar más de lo que hay en la caja.</summary>
+        // No se puede sacar más de lo que hay en la caja.
         public void Debitar(decimal monto)
         {
             ExigirAbierta();
             Validaciones.ExigirMontoPositivo(monto, "monto");
             if (monto > MontoTotal)
-                throw new ReglaNegocioException($"Saldo insuficiente: en la caja hay {MontoTotal:C2}.");
+            {
+                throw new NegocioException("Saldo insuficiente: en la caja hay " + Formato.Monto(MontoTotal) + ".");
+            }
             MontoTotal -= monto;
         }
 
-        /// <param name="montoTotal">Monto contado al cerrar.</param>
-        public void CerrarCaja(DateTime fechaCierre, decimal montoTotal)
+        // montoContado: el dinero que se contó al cerrar.
+        public void Cerrar(DateTime fechaCierre, decimal montoContado)
         {
             if (!EstaAbierta)
-                throw new ReglaNegocioException("La caja ya está cerrada.");
+            {
+                throw new NegocioException("La caja ya está cerrada.");
+            }
             if (fechaCierre < FechaApertura)
-                throw new ReglaNegocioException("La fecha de cierre no puede ser anterior a la de apertura.");
-
-            MontoTotal = Validaciones.ExigirMontoNoNegativo(montoTotal, "monto total");
+            {
+                throw new NegocioException("La fecha de cierre no puede ser anterior a la de apertura.");
+            }
+            MontoTotal = Validaciones.ExigirMontoNoNegativo(montoContado, "monto contado");
             FechaCierre = fechaCierre;
             Estado = EstadoCaja.Cerrada;
         }

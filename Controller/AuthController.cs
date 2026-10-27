@@ -1,31 +1,28 @@
 using CooperadoraISFT94.Common;
 using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Service;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Controller
 {
     public class AuthController
     {
-        private readonly IAuthService _auth;
-        private readonly SesionActual _sesion;
+        private readonly AuthService servicio;
 
-        public AuthController() : this(AuthService.Instancia, SesionActual.Instancia) { }
-
-        public AuthController(IAuthService auth, SesionActual sesion)
+        public AuthController()
         {
-            _auth = auth;
-            _sesion = sesion;
+            servicio = new AuthService();
         }
 
-        /// <exception cref="Common.Exceptions.AutenticacionException">Credenciales incorrectas o usuario sin acceso.</exception>
-        public UsuarioDto IniciarSesion(string nombreUsuario, string password)
+        public UsuarioDTO IniciarSesion(LoginDTO login)
         {
-            var usuario = _auth.Autenticar(new LoginDto(nombreUsuario, password));
-            _sesion.Iniciar(usuario);
+            UsuarioDTO usuario = servicio.Autenticar(login);
+            SesionActual.Instancia.Iniciar(usuario);
             return usuario;
         }
 
-        public void CerrarSesion() => _sesion.Cerrar();
+        public void CerrarSesion()
+        {
+            SesionActual.Instancia.Cerrar();
+        }
     }
 }

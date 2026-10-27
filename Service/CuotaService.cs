@@ -1,220 +1,268 @@
-using CooperadoraISFT94.Common.Exceptions;
-using CooperadoraISFT94.Dto;
+using CooperadoraISFT94.Common;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository.Memoria;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Repository;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Service
 {
-    public sealed class CuotaService : ICuotaService
+    public class CuotaService
     {
-        private static readonly Lazy<CuotaService> _instancia = new(() =>
-            new CuotaService(CuotaRepository.Instancia, SocioRepository.Instancia, UsuarioRepository.Instancia,
-                             MedioPagoRepository.Instancia, DetalleIngresoCuotaRepository.Instancia,
-                             ValorCuotaRepository.Instancia, MovimientoRegistrador.Instancia, AuditoriaService.Instancia));
-        public static CuotaService Instancia => _instancia.Value;
+        private readonly IRepository<Cuota> repositorio;
+        private readonly IRepository<Socio> socioRepositorio;
+        private readonly IRepository<Usuario> usuarioRepositorio;
+        private readonly IRepository<MedioPago> medioRepositorio;
+        private readonly IRepository<DetalleIngresoCuota> detalleRepositorio;
+        private readonly IRepository<ValorCuota> valorRepositorio;
+        private readonly MovimientoRegistrador registrador;
+        private readonly AuditoriaService auditoria;
 
-        private readonly ICuotaRepository _cuotas;
-        private readonly ISocioRepository _socios;
-        private readonly IUsuarioRepository _usuarios;
-        private readonly IMedioPagoRepository _medios;
-        private readonly IDetalleIngresoCuotaRepository _detalles;
-        private readonly IValorCuotaRepository _valores;
-        private readonly IMovimientoRegistrador _registrador;
-        private readonly IAuditoriaService _auditoria;
-        private readonly Func<DateTime> _reloj;
-
-        internal CuotaService(ICuotaRepository cuotas, ISocioRepository socios, IUsuarioRepository usuarios,
-                              IMedioPagoRepository medios, IDetalleIngresoCuotaRepository detalles,
-                              IValorCuotaRepository valores, IMovimientoRegistrador registrador,
-                              IAuditoriaService auditoria, Func<DateTime>? reloj = null)
+        public CuotaService()
+            : this(Repositorios.Cuotas, Repositorios.Socios, Repositorios.Usuarios, Repositorios.MediosPago,
+                Repositorios.DetallesIngresoCuota, Repositorios.ValoresCuota, new MovimientoRegistrador(), new AuditoriaService())
         {
-            _cuotas = cuotas;
-            _socios = socios;
-            _usuarios = usuarios;
-            _medios = medios;
-            _detalles = detalles;
-            _valores = valores;
-            _registrador = registrador;
-            _auditoria = auditoria;
-            _reloj = reloj ?? (() => DateTime.Now);
         }
 
-        public IReadOnlyList<CuotaDto> ObtenerPorSocio(int socioId)
+        public CuotaService(IRepository<Cuota> repositorio, IRepository<Socio> socioRepositorio,
+            IRepository<Usuario> usuarioRepositorio, IRepository<MedioPago> medioRepositorio,
+            IRepository<DetalleIngresoCuota> detalleRepositorio, IRepository<ValorCuota> valorRepositorio,
+            MovimientoRegistrador registrador, AuditoriaService auditoria)
         {
-            var socio = _socios.ObtenerExistente(socioId);
-            return _cuotas.ObtenerPorSocio(socio).Select(CuotaMapper.ADto).ToList();
+            this.repositorio = repositorio;
+            this.socioRepositorio = socioRepositorio;
+            this.usuarioRepositorio = usuarioRepositorio;
+            this.medioRepositorio = medioRepositorio;
+            this.detalleRepositorio = detalleRepositorio;
+            this.valorRepositorio = valorRepositorio;
+            this.registrador = registrador;
+            this.auditoria = auditoria;
         }
 
-        public CuotaDto Generar(CuotaCrearDto dto, int usuarioId)
+        // De la más reciente a la más antigua.
+        public List<CuotaDTO> ObtenerPorSocio(int socioId)
         {
-            ArgumentNullException.ThrowIfNull(dto);
+            Socio socio = socioRepositorio.ObtenerExistente(socioId);
+            return CuotasDe(socio).OrderByDescending(c => c.Anio).Select(MapearADto).ToList();
+        }
 
-            var socio = _socios.ObtenerExistente(dto.SocioId);
+        // Genera la cuota de un año para un socio (dto.SocioId, dto.Anio y dto.Monto).
+        public CuotaDTO Generar(CuotaDTO dto, int usuarioId)
+        {
+            Socio socio = socioRepositorio.ObtenerExistente(dto.SocioId);
             socio.ExigirActivo();
-
-            // La Cuota valida monto y año; acá solo se controla lo que depende de las otras cuotas del socio.
-            var cuota = new Cuota(socio, dto.Monto, dto.Anio);
-
-            if (_cuotas.ExisteParaAnio(socio, cuota.Anio))
-                throw new ReglaNegocioException("El socio ya tiene una cuota para ese año.");
-
-            _cuotas.Agregar(cuota);
-            _auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(Cuota), cuota.Id,
-                                 $"Cuota {cuota.Anio} de {socio.ObtenerDescripcion()} por {cuota.Monto:C2}");
-
-            return CuotaMapper.ADto(cuota);
-        }
-
-        public GeneracionCuotasDto GenerarParaTodos(int anio, decimal monto, int usuarioId)
-        {
-            // Fijar el valor valida año y monto antes de generar nada.
-            FijarValorCuota(anio, monto, usuarioId);
-
-            var generadas = 0;
-            var yaTenian = 0;
-
-            foreach (var socio in _socios.ObtenerTodos().Where(s => s.Activo))
+            Cuota cuota = new Cuota(repositorio.ObtenerProximoId(), socio, dto.Monto, dto.Anio);
+            if (TieneCuota(socio, cuota.Anio))
             {
-                if (_cuotas.ExisteParaAnio(socio, anio))
-                {
-                    yaTenian++;
-                    continue;
-                }
-
-                var cuota = _cuotas.Agregar(new Cuota(socio, monto, anio));
-                _auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(Cuota), cuota.Id,
-                                     $"Cuota {anio} de {socio.ObtenerDescripcion()} por {monto:C2} (generación del año)");
-                generadas++;
+                throw new NegocioException("El socio ya tiene una cuota para el año " + cuota.Anio + ".");
             }
 
-            return new GeneracionCuotasDto(anio, monto, generadas, yaTenian);
+            repositorio.Agregar(cuota);
+            auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(Cuota), cuota.Id,
+                "Cuota " + cuota.Anio + " de " + socio.ObtenerDescripcion() + " por " + Formato.Monto(cuota.Monto));
+            return MapearADto(cuota);
         }
 
-        public decimal? ObtenerMontoSugerido(int anio) =>
-            _valores.ObtenerPorAnio(anio)?.Monto ?? _cuotas.ObtenerUltimaDelAnio(anio)?.Monto;
+        // Fija el valor del año y genera la cuota a cada socio activo que todavía no la tenga.
+        public GeneracionCuotasDTO GenerarParaTodos(int anio, decimal monto, int usuarioId)
+        {
+            FijarValorCuota(anio, monto, usuarioId);
+
+            GeneracionCuotasDTO resultado = new GeneracionCuotasDTO();
+            resultado.Anio = anio;
+            resultado.Monto = monto;
+            foreach (Socio socio in socioRepositorio.ObtenerTodos().Where(s => s.Activo))
+            {
+                if (TieneCuota(socio, anio))
+                {
+                    resultado.YaTenian++;
+                    continue;
+                }
+                Cuota cuota = new Cuota(repositorio.ObtenerProximoId(), socio, monto, anio);
+                repositorio.Agregar(cuota);
+                auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(Cuota), cuota.Id,
+                    "Cuota " + anio + " de " + socio.ObtenerDescripcion() + " por " + Formato.Monto(monto) + " (generación del año)");
+                resultado.Generadas++;
+            }
+            return resultado;
+        }
+
+        // El valor fijado para el año o, si no se fijó, el de la última cuota generada de ese año.
+        public decimal? ObtenerMontoSugerido(int anio)
+        {
+            ValorCuota? valor = BuscarValor(anio);
+            if (valor != null)
+            {
+                return valor.Monto;
+            }
+            Cuota? ultima = repositorio.ObtenerTodos().Where(c => c.Anio == anio).OrderByDescending(c => c.Id).FirstOrDefault();
+            return ultima?.Monto;
+        }
 
         public void FijarValorCuota(int anio, decimal monto, int usuarioId)
         {
-            var valor = _valores.ObtenerPorAnio(anio);
-
-            if (valor is null)
+            ValorCuota? valor = BuscarValor(anio);
+            if (valor == null)
             {
-                valor = _valores.Agregar(new ValorCuota(anio, monto));
-                _auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(ValorCuota), valor.Id,
-                                     $"Valor de la cuota {anio}: {valor.Monto:C2}");
+                valor = new ValorCuota(valorRepositorio.ObtenerProximoId(), anio, monto);
+                valorRepositorio.Agregar(valor);
+                auditoria.Registrar(usuarioId, AccionAuditoria.Alta, nameof(ValorCuota), valor.Id,
+                    "Valor de la cuota " + anio + ": " + Formato.Monto(valor.Monto));
                 return;
             }
 
-            var anterior = valor.Monto;
-            valor.CambiarMonto(monto);
+            decimal anterior = valor.Monto;
+            valor.Monto = monto;
             if (anterior == valor.Monto)
+            {
                 return;
-
-            _valores.Actualizar(valor);
-            _auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(ValorCuota), valor.Id,
-                                 new DescripcionCambios().Campo($"Valor de la cuota {anio}", anterior, valor.Monto).ToString());
+            }
+            valorRepositorio.Actualizar(valor);
+            auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(ValorCuota), valor.Id,
+                new DescripcionCambios().Campo("Valor de la cuota " + anio, anterior, valor.Monto).ToString());
         }
 
-        public ReciboPagoDto RegistrarPago(int cuotaId, int medioPagoId, int usuarioId, int? pagadorId = null) =>
-            RegistrarPagos(new[] { cuotaId }, medioPagoId, usuarioId, pagadorId);
-
-        public ReciboPagoDto RegistrarPagos(IReadOnlyCollection<int> cuotaIds, int medioPagoId, int usuarioId, int? pagadorId = null)
+        // pagadorId: el responsable del socio si es quien paga; null si paga el propio socio.
+        public ReciboPagoDTO RegistrarPago(int cuotaId, int medioPagoId, int usuarioId, int? pagadorId)
         {
-            ArgumentNullException.ThrowIfNull(cuotaIds);
-            if (cuotaIds.Count == 0)
-                throw new ReglaNegocioException("Elegí al menos una cuota para cobrar.");
+            return RegistrarPagos(new List<int> { cuotaId }, medioPagoId, usuarioId, pagadorId);
+        }
 
-            var cuotas = cuotaIds.Distinct().Select(_cuotas.ObtenerExistente).OrderBy(c => c.Anio).ToList();
-            foreach (var cuota in cuotas)
-                cuota.ValidarPagable();
-
-            var usuario = _usuarios.ObtenerExistente(usuarioId);
-            var medio = _medios.ObtenerExistente(medioPagoId);
-            medio.ExigirActivo();
-            var pagador = pagadorId is int id ? _socios.ObtenerExistente(id) : null;
-
-            // Sin responsable que pague, un recibo es de un solo socio.
-            if (pagador is null && cuotas.Select(c => c.Socio).Distinct().Count() > 1)
-                throw new ReglaNegocioException("Solo se pueden cobrar juntas cuotas del mismo socio (o las que paga un responsable).");
-
-            // Todo lo que puede fallar por los datos se construye antes de tocar la caja; el registro del ingreso
-            // (que exige caja abierta) va último, así si falla las cuotas quedan como estaban.
-            var ingreso = new Ingreso(usuario, _reloj(), cuotas.Sum(c => c.Monto), medio, CategoriaIngreso.CuotaSocial);
-
-            // El responsable puede pagar sus propias cuotas junto con las de sus socios a cargo.
-            var detalles = cuotas
-                .Select(c => new DetalleIngresoCuota(ingreso, c, c.Monto, ReferenceEquals(c.Socio, pagador) ? null : pagador))
-                .ToList();
-
-            _registrador.Registrar(ingreso);
-
-            foreach (var detalle in detalles)
+        // Cobra varias cuotas juntas en un solo ingreso y un solo recibo. No hay recargo por pagar tarde.
+        public ReciboPagoDTO RegistrarPagos(List<int> cuotaIds, int medioPagoId, int usuarioId, int? pagadorId)
+        {
+            if (cuotaIds == null || cuotaIds.Count == 0)
             {
-                _detalles.Agregar(detalle);
-
-                var cuota = detalle.Cuota;
-                cuota.CambiarEstado(EstadoCuota.Pagada);
-                _cuotas.Actualizar(cuota);
-
-                var quienPago = detalle.PagadaPor is Socio responsable
-                    ? $" (pagó su responsable {responsable.ObtenerDescripcion()})"
-                    : string.Empty;
-                _auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(Cuota), cuota.Id,
-                                     $"Estado: Pendiente → Pagada{quienPago}");
+                throw new NegocioException("Elija al menos una cuota para cobrar.");
             }
 
-            var lineas = cuotas
-                .Select(c => new LineaReciboDto(c.Id, c.Socio.ObtenerDescripcion(), c.Anio, c.Monto))
-                .ToList();
-            var pagoResponsable = detalles.Any(d => d.PagadaPor is not null);
+            List<Cuota> cuotas = cuotaIds.Distinct().Select(repositorio.ObtenerExistente).OrderBy(c => c.Anio).ToList();
+            foreach (Cuota cuota in cuotas)
+            {
+                cuota.ValidarPagable();
+            }
+            Usuario usuario = usuarioRepositorio.ObtenerExistente(usuarioId);
+            MedioPago medio = medioRepositorio.ObtenerExistente(medioPagoId);
+            medio.ExigirActivo();
+            Socio? pagador = pagadorId.HasValue ? socioRepositorio.ObtenerExistente(pagadorId.Value) : null;
 
-            return new ReciboPagoDto(ingreso.Id, ingreso.Fecha, lineas, medio.Nombre,
-                                     pagoResponsable ? pagador!.ObtenerDescripcion() : null, usuario.NombreCompleto);
+            // Sin un responsable que pague, un recibo es de un solo socio.
+            if (pagador == null && cuotas.Select(c => c.Socio).Distinct().Count() > 1)
+            {
+                throw new NegocioException("Solo se pueden cobrar juntas cuotas del mismo socio (o las que paga un responsable).");
+            }
+
+            // Todo lo que puede fallar por los datos se arma antes de tocar la caja. El registro del ingreso
+            // (que exige caja abierta) va último: si falla, las cuotas quedan como estaban.
+            Ingreso ingreso = new Ingreso(registrador.ObtenerProximoId(), usuario, registrador.Ahora(), cuotas.Sum(c => c.Monto),
+                medio, CategoriaIngreso.CuotaSocial);
+            List<DetalleIngresoCuota> detalles = new List<DetalleIngresoCuota>();
+            foreach (Cuota cuota in cuotas)
+            {
+                // El responsable puede pagar sus propias cuotas junto con las de sus socios a cargo.
+                Socio? pagadaPor = ReferenceEquals(cuota.Socio, pagador) ? null : pagador;
+                detalles.Add(new DetalleIngresoCuota(detalleRepositorio.ObtenerProximoId(), ingreso, cuota, cuota.Monto, pagadaPor));
+            }
+
+            registrador.Registrar(ingreso);
+            foreach (DetalleIngresoCuota detalle in detalles)
+            {
+                detalleRepositorio.Agregar(detalle);
+                detalle.Cuota.MarcarPagada();
+                repositorio.Actualizar(detalle.Cuota);
+
+                string quienPago = detalle.PagadaPor != null
+                    ? " (pagó su responsable " + detalle.PagadaPor.ObtenerDescripcion() + ")"
+                    : string.Empty;
+                auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, nameof(Cuota), detalle.Cuota.Id,
+                    "Estado: Pendiente → Pagada" + quienPago);
+            }
+
+            ReciboPagoDTO recibo = new ReciboPagoDTO();
+            recibo.Numero = ingreso.Id;
+            recibo.Fecha = ingreso.Fecha;
+            recibo.MedioPago = medio.Nombre;
+            recibo.Usuario = usuario.NombreCompleto;
+            recibo.PagadoPor = detalles.Any(d => d.PagadaPor != null) ? pagador!.ObtenerDescripcion() : string.Empty;
+            foreach (Cuota cuota in cuotas)
+            {
+                LineaReciboDTO linea = new LineaReciboDTO();
+                linea.CuotaId = cuota.Id;
+                linea.Socio = cuota.Socio.ObtenerDescripcion();
+                linea.Anio = cuota.Anio;
+                linea.Monto = cuota.Monto;
+                recibo.Cuotas.Add(linea);
+            }
+            return recibo;
         }
 
-        public IReadOnlyList<CuotaPendienteDto> ObtenerPendientes(int? anio)
+        // Un socio por fila con sus cuotas pendientes. Las familias quedan juntas: primero se ordena por
+        // quien paga (el responsable o el propio socio) y después por socio.
+        public List<DeudorDTO> ObtenerDeudores(DeudoresFiltroDTO filtro)
         {
-            if (anio is int a && !Common.Validaciones.EsAnioValido(a))
-                throw new ReglaNegocioException("El año no es válido.");
+            if (filtro.Anio.HasValue)
+            {
+                Validaciones.ExigirAnio(filtro.Anio.Value);
+            }
 
-            return _cuotas.ObtenerPendientes(anio)
-                          .Select(c => new CuotaPendienteDto(
-                              c.Id, c.Socio.Id, c.Socio.Apellido, c.Socio.Nombre, c.Socio.Dni, c.Socio.Telefono,
-                              c.Socio.Email, c.Socio.Responsable?.ObtenerDescripcion() ?? "-", c.Socio.Activo,
-                              c.Anio, c.Monto))
-                          .ToList();
-        }
-
-        public IReadOnlyList<DeudorDto> ObtenerDeudores(DeudoresFiltroDto filtro)
-        {
-            ArgumentNullException.ThrowIfNull(filtro);
-            if (filtro.Anio is int a && !Common.Validaciones.EsAnioValido(a))
-                throw new ReglaNegocioException("El año no es válido.");
-
-            var texto = filtro.Texto?.Trim() ?? string.Empty;
-
-            return _cuotas.ObtenerPendientes(filtro.Anio)
+            IEnumerable<IGrouping<Socio, Cuota>> grupos = repositorio.ObtenerTodos()
+                .Where(c => !c.EstaPagada && (!filtro.Anio.HasValue || c.Anio == filtro.Anio.Value))
                 .Where(c => filtro.IncluirDadosDeBaja || c.Socio.Activo)
-                .GroupBy(c => c.Socio)
-                .Where(g => texto.Length == 0
-                            || g.Key.Dni.Contains(texto, StringComparison.OrdinalIgnoreCase)
-                            || g.Key.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase)
-                            || $"{g.Key.Apellido} {g.Key.Nombre}".Contains(texto, StringComparison.OrdinalIgnoreCase)
-                            || (g.Key.Responsable?.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase) ?? false))
-                // Las familias juntas: primero se ordena por quien paga y después por socio.
-                .OrderBy(g => (g.Key.Responsable ?? g.Key).Apellido)
-                .ThenBy(g => (g.Key.Responsable ?? g.Key).Nombre)
-                .ThenBy(g => g.Key.Responsable is null ? 0 : 1)
-                .ThenBy(g => g.Key.Apellido)
-                .ThenBy(g => g.Key.Nombre)
-                .Select(g => new DeudorDto(
-                    g.Key.Id, g.Key.Apellido, g.Key.Nombre, g.Key.Dni, g.Key.Telefono, g.Key.Email,
-                    g.Key.Responsable?.Id, g.Key.Responsable?.ObtenerDescripcion(), g.Key.Activo,
-                    g.Select(c => c.Anio).OrderBy(x => x).ToList(), g.Sum(c => c.Monto)))
-                .ToList();
+                .GroupBy(c => c.Socio);
+
+            return grupos.OrderBy(g => (g.Key.Responsable ?? g.Key).Apellido)
+                         .ThenBy(g => (g.Key.Responsable ?? g.Key).Nombre)
+                         .ThenBy(g => g.Key.Responsable == null ? 0 : 1)
+                         .ThenBy(g => g.Key.Apellido)
+                         .ThenBy(g => g.Key.Nombre)
+                         .Select(g => MapearDeudor(g.Key, g.ToList()))
+                         .ToList();
+        }
+
+        private IEnumerable<Cuota> CuotasDe(Socio socio)
+        {
+            return repositorio.ObtenerTodos().Where(c => ReferenceEquals(c.Socio, socio));
+        }
+
+        private bool TieneCuota(Socio socio, int anio)
+        {
+            return CuotasDe(socio).Any(c => c.Anio == anio);
+        }
+
+        private ValorCuota? BuscarValor(int anio)
+        {
+            return valorRepositorio.ObtenerTodos().FirstOrDefault(v => v.Anio == anio);
+        }
+
+        private static DeudorDTO MapearDeudor(Socio socio, List<Cuota> pendientes)
+        {
+            DeudorDTO dto = new DeudorDTO();
+            dto.SocioId = socio.Id;
+            dto.Socio = socio.Apellido + ", " + socio.Nombre;
+            dto.Dni = socio.Dni;
+            dto.Paga = socio.Responsable == null ? "El socio" : "Su responsable: " + socio.Responsable.ObtenerDescripcion();
+            dto.AniosQueDebe = string.Join(", ", pendientes.Select(c => c.Anio).OrderBy(a => a));
+            dto.CantidadCuotas = pendientes.Count;
+            dto.Total = pendientes.Sum(c => c.Monto);
+            dto.Telefono = socio.Telefono;
+            dto.Email = socio.Email;
+            dto.EmailDeContacto = socio.Responsable != null ? socio.Responsable.Email : socio.Email;
+            dto.ResponsableId = socio.Responsable?.Id;
+            dto.Responsable = socio.Responsable?.ObtenerDescripcion() ?? string.Empty;
+            dto.SocioActivo = socio.Activo;
+            return dto;
+        }
+
+        private static CuotaDTO MapearADto(Cuota cuota)
+        {
+            CuotaDTO dto = new CuotaDTO();
+            dto.Id = cuota.Id;
+            dto.SocioId = cuota.Socio.Id;
+            dto.Socio = cuota.Socio.ObtenerDescripcion();
+            dto.Anio = cuota.Anio;
+            dto.Monto = cuota.Monto;
+            dto.Estado = cuota.Estado;
+            return dto;
         }
     }
 }

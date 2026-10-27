@@ -1,54 +1,50 @@
-using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Service;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Controller
 {
-    /// <summary>Gestión de usuarios y roles. Solo para administradores.</summary>
     public class UsuarioController : BaseController
     {
-        private readonly IUsuarioService _usuarios;
+        private readonly UsuarioService servicio;
 
-        public UsuarioController() : this(UsuarioService.Instancia, SesionActual.Instancia) { }
-
-        public UsuarioController(IUsuarioService usuarios, SesionActual sesion) : base(sesion)
+        public UsuarioController()
         {
-            _usuarios = usuarios;
+            servicio = new UsuarioService();
         }
 
-        public IReadOnlyList<UsuarioDto> ObtenerTodos()
+        public List<UsuarioDTO> ObtenerTodos()
         {
             ExigirRol(Rol.Administrador);
-            return _usuarios.ObtenerTodos();
+            return servicio.ObtenerTodos();
         }
 
-        public UsuarioDto Registrar(UsuarioCrearDto dto)
+        public UsuarioDTO ObtenerPorId(int id)
         {
             ExigirRol(Rol.Administrador);
-            return _usuarios.Registrar(dto, UsuarioActualId);
+            return servicio.ObtenerPorId(id);
         }
 
-        public UsuarioDto Editar(UsuarioEditarDto dto)
+        // Crea o edita según dto.Id. Si se editó al usuario que inició sesión, se actualiza la sesión.
+        public UsuarioDTO Guardar(UsuarioDTO dto)
         {
             ExigirRol(Rol.Administrador);
-            var editado = _usuarios.Editar(dto, UsuarioActualId);
-            Sesion.Actualizar(editado);
-            return editado;
+            UsuarioDTO guardado = servicio.Guardar(dto, UsuarioActualId);
+            Sesion.Actualizar(guardado);
+            return guardado;
         }
 
-        /// <summary>Cualquier usuario logueado puede cambiar su propia contraseña.</summary>
-        public void CambiarMiPassword(CambioPasswordDto dto)
-        {
-            ExigirAlgunRol(Enum.GetValues<Rol>());
-            _usuarios.CambiarPasswordPropia(UsuarioActualId, dto);
-        }
-
-        public UsuarioDto CambiarEstado(int usuarioId, bool activo)
+        public UsuarioDTO CambiarEstado(int usuarioId, bool activo)
         {
             ExigirRol(Rol.Administrador);
-            return _usuarios.CambiarEstado(usuarioId, activo, UsuarioActualId);
+            return servicio.CambiarEstado(usuarioId, activo, UsuarioActualId);
+        }
+
+        // Cualquier usuario puede cambiar su propia contraseña.
+        public void CambiarMiPassword(CambioPasswordDTO dto)
+        {
+            ExigirRol(Enum.GetValues<Rol>());
+            servicio.CambiarPasswordPropia(UsuarioActualId, dto);
         }
     }
 }

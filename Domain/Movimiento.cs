@@ -1,37 +1,46 @@
 using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 
 namespace CooperadoraISFT94.Domain
 {
-    /// <summary>
-    /// Reglas comunes a ingresos y egresos. Cada subclase sabe cómo afecta a la caja (polimorfismo):
-    /// quien trabaja con un Movimiento no necesita preguntar de qué tipo es.
-    /// </summary>
-    public abstract class Movimiento : Entidad
+    // Reglas comunes a ingresos y egresos. Cada subclase sabe cómo afecta a la caja: quien trabaja con un
+    // Movimiento no necesita preguntar de qué tipo es.
+    public abstract class Movimiento : IEntidad
     {
-        protected Movimiento(Usuario usuario, DateTime fecha, decimal monto, MedioPago medioPago)
+        public const int LargoMaximoMotivoAnulacion = 200;
+
+        protected Movimiento(int id, Usuario usuario, DateTime fecha, decimal monto, MedioPago medioPago)
         {
-            Usuario = usuario ?? throw new ReglaNegocioException("El movimiento debe registrarlo un usuario.");
-            MedioPago = medioPago ?? throw new ReglaNegocioException("El medio de pago es obligatorio.");
+            if (usuario == null)
+            {
+                throw new NegocioException("El movimiento debe registrarlo un usuario.");
+            }
+            if (medioPago == null)
+            {
+                throw new NegocioException("El medio de pago es obligatorio.");
+            }
+            Id = id;
+            Usuario = usuario;
+            MedioPago = medioPago;
             Fecha = fecha;
             Monto = Validaciones.ExigirMontoPositivo(monto, "monto");
         }
 
-        public Usuario Usuario { get; }
+        public int Id { get; private set; }
 
-        public MedioPago MedioPago { get; }
+        public Usuario Usuario { get; private set; }
 
-        public DateTime Fecha { get; }
+        public MedioPago MedioPago { get; private set; }
 
-        public decimal Monto { get; }
+        public DateTime Fecha { get; private set; }
 
-        /// <summary>Caja a la que se aplicó el movimiento; null mientras no se haya aplicado.</summary>
+        public decimal Monto { get; private set; }
+
+        // Caja a la que se aplicó; null mientras no se haya aplicado.
         public Caja? Caja { get; private set; }
 
-        public const int LargoMaximoMotivoAnulacion = 200;
-
-        /// <summary>True si se anuló: su efecto en la caja se revirtió, pero queda registrado.</summary>
+        // Un movimiento anulado revirtió su efecto en la caja, pero queda registrado.
         public bool Anulado { get; private set; }
 
         public DateTime? FechaAnulacion { get; private set; }
@@ -42,61 +51,66 @@ namespace CooperadoraISFT94.Domain
 
         public abstract TipoMovimiento Tipo { get; }
 
-        /// <summary>Categoría (ingresos) o motivo (egresos), en texto, para listados.</summary>
+        // Categoría (ingresos) o motivo (egresos), en texto, para los listados.
         public abstract string Clasificacion { get; }
 
-        /// <summary>
-        /// Aplica el movimiento a la caja y al total de su medio de pago, y lo deja ligado a esa caja.
-        /// Falla sin modificar nada si la caja está cerrada, el total no corresponde o el movimiento ya se aplicó.
-        /// </summary>
+        // Aplica el movimiento a la caja y al total de su medio de pago. Falla sin modificar nada si la caja
+        // está cerrada, el total no corresponde o el movimiento ya se aplicó.
         public void AfectarCaja(Caja caja, CajaTotalMedioPago totalMedioPago)
         {
-            ArgumentNullException.ThrowIfNull(caja);
-            ArgumentNullException.ThrowIfNull(totalMedioPago);
-
-            if (Caja is not null)
-                throw new ReglaNegocioException("El movimiento ya fue registrado en una caja.");
-
+            if (Caja != null)
+            {
+                throw new NegocioException("El movimiento ya fue registrado en una caja.");
+            }
             caja.ExigirAbierta();
-
-            if (!ReferenceEquals(totalMedioPago.Caja, caja) || !ReferenceEquals(totalMedioPago.MedioPago, MedioPago))
-                throw new ReglaNegocioException("El total por medio de pago no corresponde a la caja o al medio del movimiento.");
+            ExigirTotalCorrespondiente(caja, totalMedioPago);
 
             Aplicar(caja, totalMedioPago);
             Caja = caja;
         }
 
-        /// <summary>
-        /// Revierte el efecto del movimiento en su caja y lo marca como anulado. Solo se pueden anular
-        /// movimientos de la caja abierta: una caja cerrada ya se contó y no se modifica.
-        /// </summary>
+        // Revierte el efecto en la caja y lo marca como anulado. Solo se anulan movimientos de la caja abierta:
+        // una caja cerrada ya se contó y no se modifica.
         public void Anular(Usuario usuario, DateTime fecha, string motivo, CajaTotalMedioPago totalMedioPago)
         {
-            ArgumentNullException.ThrowIfNull(totalMedioPago);
-            var usuarioValido = usuario ?? throw new ReglaNegocioException("La anulación debe registrarla un usuario.");
-            var motivoValido = Validaciones.ExigirTexto(motivo, "motivo de la anulación", LargoMaximoMotivoAnulacion);
-
+            if (usuario == null)
+            {
+                throw new NegocioException("La anulación debe registrarla un usuario.");
+            }
+            string motivoValido = Validaciones.ExigirTexto(motivo, "motivo de la anulación", LargoMaximoMotivoAnulacion);
             if (Anulado)
-                throw new ReglaNegocioException("El movimiento ya está anulado.");
-            if (Caja is null)
-                throw new ReglaNegocioException("El movimiento no se registró en ninguna caja.");
+            {
+                throw new NegocioException("El movimiento ya está anulado.");
+            }
+            if (Caja == null)
+            {
+                throw new NegocioException("El movimiento no se registró en ninguna caja.");
+            }
             if (!Caja.EstaAbierta)
-                throw new ReglaNegocioException("Solo se pueden anular movimientos de la caja abierta.");
-            if (!ReferenceEquals(totalMedioPago.Caja, Caja) || !ReferenceEquals(totalMedioPago.MedioPago, MedioPago))
-                throw new ReglaNegocioException("El total por medio de pago no corresponde a la caja o al medio del movimiento.");
+            {
+                throw new NegocioException("Solo se pueden anular movimientos de la caja abierta.");
+            }
+            ExigirTotalCorrespondiente(Caja, totalMedioPago);
 
             Revertir(Caja, totalMedioPago);
-
             Anulado = true;
             FechaAnulacion = fecha;
-            AnuladoPor = usuarioValido;
+            AnuladoPor = usuario;
             MotivoAnulacion = motivoValido;
         }
 
-        /// <summary>Lo que cambia según el tipo: el ingreso acredita, el egreso debita.</summary>
+        // Lo que cambia según el tipo: el ingreso acredita y el egreso debita.
         protected abstract void Aplicar(Caja caja, CajaTotalMedioPago totalMedioPago);
 
-        /// <summary>Lo contrario de <see cref="Aplicar"/>: el ingreso anulado debita, el egreso anulado acredita.</summary>
+        // Lo contrario de Aplicar.
         protected abstract void Revertir(Caja caja, CajaTotalMedioPago totalMedioPago);
+
+        private void ExigirTotalCorrespondiente(Caja caja, CajaTotalMedioPago totalMedioPago)
+        {
+            if (!ReferenceEquals(totalMedioPago.Caja, caja) || !ReferenceEquals(totalMedioPago.MedioPago, MedioPago))
+            {
+                throw new NegocioException("El total por medio de pago no corresponde a la caja o al medio del movimiento.");
+            }
+        }
     }
 }

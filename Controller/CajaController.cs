@@ -1,45 +1,53 @@
-using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Service;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Controller
 {
     public class CajaController : BaseController
     {
-        private readonly ICajaService _cajas;
+        private readonly CajaService servicio;
 
-        public CajaController() : this(CajaService.Instancia, SesionActual.Instancia) { }
-
-        public CajaController(ICajaService cajas, SesionActual sesion) : base(sesion)
+        public CajaController()
         {
-            _cajas = cajas;
+            servicio = new CajaService();
         }
 
-        /// <summary>Devuelve null cuando no hay ninguna caja abierta. Solo lectura: el Operador la consulta para saber si puede cobrar.</summary>
-        public CajaDto? ObtenerActiva()
+        // El operador también la consulta: sin caja abierta no puede cobrar.
+        public CajaDTO? ObtenerActiva()
         {
-            ExigirAlgunRol(Rol.Contador, Rol.Operador);
-            return _cajas.ObtenerActiva();
+            ExigirRol(Rol.Contador, Rol.Operador);
+            return servicio.ObtenerActiva();
         }
 
-        public CajaDto Abrir(AbrirCajaDto dto)
+        public List<CajaDTO> ObtenerTodas()
         {
             ExigirRol(Rol.Contador);
-            return _cajas.Abrir(dto, UsuarioActualId);
+            return servicio.ObtenerTodas();
         }
 
-        public ResumenCajaDto Cerrar(CerrarCajaDto dto)
+        public CajaDTO Abrir(decimal montoInicial)
         {
             ExigirRol(Rol.Contador);
-            return _cajas.Cerrar(dto, UsuarioActualId);
+            return servicio.Abrir(montoInicial, UsuarioActualId);
         }
 
-        public ResumenCajaDto ObtenerResumenActivo(decimal? montoDeclarado)
+        public ResumenCajaDTO Cerrar(decimal montoContado)
         {
             ExigirRol(Rol.Contador);
-            return _cajas.ObtenerResumenActivo(montoDeclarado);
+            return servicio.Cerrar(montoContado, UsuarioActualId);
+        }
+
+        public ResumenCajaDTO ObtenerResumenActivo(decimal? montoDeclarado)
+        {
+            ExigirRol(Rol.Contador);
+            return servicio.ObtenerResumenActivo(montoDeclarado);
+        }
+
+        public ResumenCajaDTO ObtenerResumen(int cajaId)
+        {
+            ExigirRol(Rol.Contador);
+            return servicio.ObtenerResumen(cajaId);
         }
     }
 }

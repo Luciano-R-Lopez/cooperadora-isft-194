@@ -1,30 +1,23 @@
 namespace CooperadoraISFT94.Common
 {
-    /// <summary>
-    /// Guarda los errores inesperados (de programación) en un archivo de texto, para poder saber qué pasó
-    /// aunque el usuario cierre el mensaje. Nunca lanza: si no puede escribir, lo ignora.
-    /// </summary>
+    // Guarda los errores inesperados en un archivo de texto para poder saber qué pasó aunque el usuario
+    // cierre el mensaje. Nunca lanza: si no puede escribir, lo ignora.
     public static class RegistroErrores
     {
-        /// <summary>%LOCALAPPDATA%\CooperadoraISFT194\errores.log</summary>
-        public static string Archivo { get; } = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "CooperadoraISFT194", "errores.log");
-
-        private static readonly object Candado = new();
+        private static readonly object candado = new object();
 
         public static void Registrar(Exception excepcion)
         {
             try
             {
-                var usuario = SesionActual.Instancia.Usuario?.NombreUsuario ?? "(sin sesión)";
-                var texto = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Usuario: {usuario}{Environment.NewLine}" +
-                            $"{excepcion}{Environment.NewLine}{new string('-', 80)}{Environment.NewLine}";
+                string usuario = SesionActual.Instancia.Usuario?.NombreUsuario ?? "(sin sesión)";
+                string texto = "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "] Usuario: " + usuario + Environment.NewLine
+                    + excepcion + Environment.NewLine + new string('-', 80) + Environment.NewLine;
 
-                lock (Candado)
+                lock (candado)
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(Archivo)!);
-                    File.AppendAllText(Archivo, texto);
+                    Directory.CreateDirectory(Path.GetDirectoryName(Configuracion.RutaRegistroErrores)!);
+                    File.AppendAllText(Configuracion.RutaRegistroErrores, texto);
                 }
             }
             catch (Exception)

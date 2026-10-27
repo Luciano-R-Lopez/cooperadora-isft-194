@@ -3,30 +3,74 @@ using CooperadoraISFT94.Common.Exceptions;
 
 namespace CooperadoraISFT94.Common
 {
-    /// <summary>Reglas de validación reutilizables por el dominio y los servicios.</summary>
+    // Validaciones que comparten varias entidades. Cada una lanza NegocioException con un mensaje para el usuario.
     public static class Validaciones
     {
-        public static bool EsDniValido(string dni) =>
-            dni.Length is >= 7 and <= 8 && dni.All(char.IsDigit);
+        public static string ExigirTexto(string? valor, string campo, int largoMaximo)
+        {
+            string texto = (valor ?? string.Empty).Trim();
+            if (texto.Length == 0)
+            {
+                throw new NegocioException("El " + campo + " no puede estar vacío.");
+            }
+            if (texto.Length > largoMaximo)
+            {
+                throw new NegocioException("El " + campo + " no puede tener más de " + largoMaximo + " caracteres.");
+            }
+            return texto;
+        }
 
-        public static bool EsTelefonoValido(string telefono) =>
-            telefono.Length is >= 6 and <= 20 &&
-            telefono.All(c => char.IsDigit(c) || c is '+' or ' ' or '-' or '(' or ')');
+        // Monto mayor a cero y con centavos como máximo (cuotas, ingresos, egresos).
+        public static decimal ExigirMontoPositivo(decimal monto, string campo)
+        {
+            if (monto <= 0)
+            {
+                throw new NegocioException("El " + campo + " debe ser mayor a cero.");
+            }
+            return ExigirCentavos(monto, campo);
+        }
 
-        /// <summary>3 a 30 caracteres: letras, números, punto, guion y guion bajo.</summary>
-        public static bool EsNombreUsuarioValido(string nombreUsuario) =>
-            nombreUsuario.Length is >= 3 and <= 30 &&
-            nombreUsuario.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_');
+        // Monto sin signo negativo y con centavos como máximo (saldos de caja).
+        public static decimal ExigirMontoNoNegativo(decimal monto, string campo)
+        {
+            if (monto < 0)
+            {
+                throw new NegocioException("El " + campo + " no puede ser negativo.");
+            }
+            return ExigirCentavos(monto, campo);
+        }
 
-        public static bool EsPasswordValida(string password) =>
-            password.Length is >= 6 and <= 64;
+        public static int ExigirAnio(int anio)
+        {
+            if (anio < Configuracion.AnioMinimo || anio > Configuracion.AnioMaximo)
+            {
+                throw new NegocioException("El año debe estar entre " + Configuracion.AnioMinimo + " y " + Configuracion.AnioMaximo + ".");
+            }
+            return anio;
+        }
 
-        public static bool EsAnioValido(int anio) =>
-            anio is >= 2000 and <= 2100;
+        public static bool EsDniValido(string dni)
+        {
+            return dni.Length >= 7 && dni.Length <= 8 && dni.All(char.IsDigit);
+        }
 
-        /// <summary>Los importes y saldos se guardan con centavos, no más.</summary>
-        public static bool TieneComoMucho2Decimales(decimal valor) =>
-            decimal.Round(valor, 2) == valor;
+        public static bool EsTelefonoValido(string telefono)
+        {
+            return telefono.Length >= 6 && telefono.Length <= 20
+                && telefono.All(c => char.IsDigit(c) || c == '+' || c == ' ' || c == '-' || c == '(' || c == ')');
+        }
+
+        // De 3 a 30 caracteres: letras, números, punto, guion y guion bajo.
+        public static bool EsNombreUsuarioValido(string nombreUsuario)
+        {
+            return nombreUsuario.Length >= 3 && nombreUsuario.Length <= 30
+                && nombreUsuario.All(c => char.IsAsciiLetterOrDigit(c) || c == '.' || c == '-' || c == '_');
+        }
+
+        public static bool EsPasswordValida(string password)
+        {
+            return password.Length >= 6 && password.Length <= 64;
+        }
 
         public static bool EsEmailValido(string email)
         {
@@ -40,37 +84,12 @@ namespace CooperadoraISFT94.Common
             }
         }
 
-        /// <summary>Texto obligatorio y acotado. Devuelve el texto ya recortado.</summary>
-        public static string ExigirTexto(string? valor, string campo, int largoMaximo)
-        {
-            var texto = (valor ?? string.Empty).Trim();
-            if (texto.Length == 0)
-                throw new ReglaNegocioException($"El {campo} es obligatorio.");
-            if (texto.Length > largoMaximo)
-                throw new ReglaNegocioException($"El {campo} no puede superar los {largoMaximo} caracteres.");
-            return texto;
-        }
-
-        /// <summary>Monto mayor a cero y con centavos como máximo (cuotas, ingresos, egresos).</summary>
-        public static decimal ExigirMontoPositivo(decimal monto, string campo)
-        {
-            if (monto <= 0)
-                throw new ReglaNegocioException($"El {campo} debe ser mayor a cero.");
-            return ExigirCentavos(monto, campo);
-        }
-
-        /// <summary>Monto sin signo negativo y con centavos como máximo (saldos de caja).</summary>
-        public static decimal ExigirMontoNoNegativo(decimal monto, string campo)
-        {
-            if (monto < 0)
-                throw new ReglaNegocioException($"El {campo} no puede ser negativo.");
-            return ExigirCentavos(monto, campo);
-        }
-
         private static decimal ExigirCentavos(decimal monto, string campo)
         {
-            if (!TieneComoMucho2Decimales(monto))
-                throw new ReglaNegocioException($"El {campo} no puede tener más de 2 decimales.");
+            if (decimal.Round(monto, 2) != monto)
+            {
+                throw new NegocioException("El " + campo + " no puede tener más de 2 decimales.");
+            }
             return monto;
         }
     }

@@ -28,31 +28,32 @@ namespace CooperadoraISFT94.Tests
             Assert.False(PasswordHasher.Verificar("cualquiera", hashGuardado));
         }
 
+
         [Theory]
         [InlineData("ab")]
         [InlineData("con espacio")]
         public void Nombre_de_usuario_invalido_se_rechaza(string nombreUsuario)
         {
-            Assert.Throws<ReglaNegocioException>(() =>
-                new Usuario(nombreUsuario, "Ana", "Admin", "hash", true, Rol.Administrador));
+            Assert.Throws<NegocioException>(() =>
+                new Usuario(1, nombreUsuario, "Ana", "Admin", "hash", true, Rol.Administrador));
         }
 
         [Fact]
-        public void ActualizarDatos_no_modifica_nada_si_un_dato_es_invalido()
+        public void Un_dato_invalido_no_modifica_al_usuario()
         {
-            var usuario = Crear.Usuario();
+            Usuario usuario = Crear.Usuario();
 
-            Assert.Throws<ReglaNegocioException>(() => usuario.ActualizarDatos("Nuevo", "", false, Rol.Contador));
+            Assert.Throws<NegocioException>(() => usuario.Apellido = "");
+            Assert.Throws<NegocioException>(() => usuario.AsignarRoles(Array.Empty<Rol>()));
 
-            Assert.Equal("Omar", usuario.Nombre);
-            Assert.True(usuario.Activo);
+            Assert.Equal("Operador", usuario.Apellido);
             Assert.Equal(new[] { Rol.Operador }, usuario.Roles);
         }
 
         [Fact]
         public void Un_usuario_puede_tener_varios_roles_sin_repetirlos()
         {
-            var usuario = new Usuario("pablo.paz", "Pablo", "Paz", "hash", true, Rol.Contador, Rol.Operador, Rol.Contador);
+            Usuario usuario = new Usuario(1, "pablo.paz", "Pablo", "Paz", "hash", true, Rol.Contador, Rol.Operador, Rol.Contador);
 
             Assert.Equal(new[] { Rol.Operador, Rol.Contador }, usuario.Roles);
             Assert.True(usuario.TieneRol(Rol.Operador));
@@ -61,13 +62,9 @@ namespace CooperadoraISFT94.Tests
         }
 
         [Fact]
-        public void Un_usuario_sin_roles_se_rechaza_y_al_editar_queda_como_estaba()
+        public void Un_usuario_sin_roles_se_rechaza()
         {
-            Assert.Throws<ReglaNegocioException>(() => new Usuario("ana", "Ana", "Paz", "hash", true, Array.Empty<Rol>()));
-
-            var usuario = Crear.Usuario();
-            Assert.Throws<ReglaNegocioException>(() => usuario.ActualizarDatos("Omar", "Operador", true, Array.Empty<Rol>()));
-            Assert.Equal(new[] { Rol.Operador }, usuario.Roles);
+            Assert.Throws<NegocioException>(() => new Usuario(1, "ana", "Ana", "Paz", "hash", true, Array.Empty<Rol>()));
         }
     }
 }

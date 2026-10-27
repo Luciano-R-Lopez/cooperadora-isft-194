@@ -1,24 +1,32 @@
-using CooperadoraISFT94.Common.Exceptions;
+using CooperadoraISFT94.Common;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 
 namespace CooperadoraISFT94.Domain
 {
     public class Ingreso : Movimiento
     {
-        public Ingreso(Usuario usuario, DateTime fecha, decimal monto, MedioPago medioPago, CategoriaIngreso categoriaIngreso)
-            : base(usuario, fecha, monto, medioPago)
+        public Ingreso(int id, Usuario usuario, DateTime fecha, decimal monto, MedioPago medioPago, CategoriaIngreso categoriaIngreso)
+            : base(id, usuario, fecha, monto, medioPago)
         {
             if (!Enum.IsDefined(categoriaIngreso))
-                throw new ReglaNegocioException("La categoría del ingreso no es válida.");
-
+            {
+                throw new NegocioException("La categoría del ingreso no es válida.");
+            }
             CategoriaIngreso = categoriaIngreso;
         }
 
-        public CategoriaIngreso CategoriaIngreso { get; }
+        public CategoriaIngreso CategoriaIngreso { get; private set; }
 
-        public override TipoMovimiento Tipo => TipoMovimiento.Ingreso;
+        public override TipoMovimiento Tipo
+        {
+            get { return TipoMovimiento.Ingreso; }
+        }
 
-        public override string Clasificacion => CategoriaIngreso.ToString();
+        public override string Clasificacion
+        {
+            get { return CategoriaIngreso.Texto(); }
+        }
 
         protected override void Aplicar(Caja caja, CajaTotalMedioPago totalMedioPago)
         {

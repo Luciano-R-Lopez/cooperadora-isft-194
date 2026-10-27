@@ -1,76 +1,59 @@
-using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Service;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Controller
 {
     public class CuotaController : BaseController
     {
-        private readonly ICuotaService _cuotas;
+        private readonly CuotaService servicio;
 
-        public CuotaController() : this(CuotaService.Instancia, SesionActual.Instancia) { }
-
-        public CuotaController(ICuotaService cuotas, SesionActual sesion) : base(sesion)
+        public CuotaController()
         {
-            _cuotas = cuotas;
+            servicio = new CuotaService();
         }
 
-        public IReadOnlyList<CuotaDto> ObtenerPorSocio(int socioId)
+        public List<CuotaDTO> ObtenerPorSocio(int socioId)
         {
             ExigirRol(Rol.Operador);
-            return _cuotas.ObtenerPorSocio(socioId);
+            return servicio.ObtenerPorSocio(socioId);
         }
 
-        public CuotaDto Generar(CuotaCrearDto dto)
+        public CuotaDTO Generar(CuotaDTO dto)
         {
             ExigirRol(Rol.Operador);
-            return _cuotas.Generar(dto, UsuarioActualId);
+            return servicio.Generar(dto, UsuarioActualId);
+        }
+
+        public GeneracionCuotasDTO GenerarParaTodos(int anio, decimal monto)
+        {
+            ExigirRol(Rol.Operador);
+            return servicio.GenerarParaTodos(anio, monto, UsuarioActualId);
         }
 
         public decimal? ObtenerMontoSugerido(int anio)
         {
             ExigirRol(Rol.Operador);
-            return _cuotas.ObtenerMontoSugerido(anio);
-        }
-
-        public GeneracionCuotasDto GenerarParaTodos(int anio, decimal monto)
-        {
-            ExigirRol(Rol.Operador);
-            return _cuotas.GenerarParaTodos(anio, monto, UsuarioActualId);
+            return servicio.ObtenerMontoSugerido(anio);
         }
 
         public void FijarValorCuota(int anio, decimal monto)
         {
             ExigirRol(Rol.Operador);
-            _cuotas.FijarValorCuota(anio, monto, UsuarioActualId);
+            servicio.FijarValorCuota(anio, monto, UsuarioActualId);
         }
 
-        /// <param name="pagadorId">El responsable del socio si es quien paga; null si paga el propio socio.</param>
-        public ReciboPagoDto RegistrarPago(int cuotaId, int medioPagoId, int? pagadorId = null)
+        // pagadorId: el responsable del socio si es quien paga; null si paga el propio socio.
+        public ReciboPagoDTO RegistrarPagos(List<int> cuotaIds, int medioPagoId, int? pagadorId)
         {
             ExigirRol(Rol.Operador);
-            return _cuotas.RegistrarPago(cuotaId, medioPagoId, UsuarioActualId, pagadorId);
+            return servicio.RegistrarPagos(cuotaIds, medioPagoId, UsuarioActualId, pagadorId);
         }
 
-        /// <summary>Cobra varias cuotas juntas en un solo ingreso y un solo recibo.</summary>
-        public ReciboPagoDto RegistrarPagos(IReadOnlyCollection<int> cuotaIds, int medioPagoId, int? pagadorId = null)
+        public List<DeudorDTO> ObtenerDeudores(DeudoresFiltroDTO filtro)
         {
             ExigirRol(Rol.Operador);
-            return _cuotas.RegistrarPagos(cuotaIds, medioPagoId, UsuarioActualId, pagadorId);
-        }
-
-        public IReadOnlyList<CuotaPendienteDto> ObtenerPendientes(int? anio)
-        {
-            ExigirRol(Rol.Operador);
-            return _cuotas.ObtenerPendientes(anio);
-        }
-
-        public IReadOnlyList<DeudorDto> ObtenerDeudores(DeudoresFiltroDto filtro)
-        {
-            ExigirRol(Rol.Operador);
-            return _cuotas.ObtenerDeudores(filtro);
+            return servicio.ObtenerDeudores(filtro);
         }
     }
 }

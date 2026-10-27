@@ -1,13 +1,19 @@
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository;
 
 namespace CooperadoraISFT94.Repository.Memoria
 {
-    public sealed class MedioPagoRepository : InMemoryRepository<MedioPago>, IMedioPagoRepository
+    public class MedioPagoRepository : RepositorioBase<MedioPago>
     {
-        private static readonly Lazy<MedioPagoRepository> _instancia = new(() => new MedioPagoRepository());
-        public static MedioPagoRepository Instancia => _instancia.Value;
+        private static readonly MedioPagoRepository instancia = new MedioPagoRepository();
 
-        internal MedioPagoRepository() : base("El medio de pago seleccionado no existe.") { }
+        // Interno (y no privado) solo para que los tests puedan trabajar con un repositorio vacío.
+        internal MedioPagoRepository() : base("El medio de pago seleccionado no existe.")
+        {
+        }
+
+        public static MedioPagoRepository ObtenerInstancia()
+        {
+            return instancia;
+        }
     }
 }

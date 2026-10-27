@@ -1,3 +1,4 @@
+using CooperadoraISFT94.Common;
 using System.Drawing.Printing;
 using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Common.Enums;
@@ -10,9 +11,9 @@ namespace CooperadoraISFT94.Forms.Utils
     /// </summary>
     public static class Reportes
     {
-        private const string Institucion = "Cooperadora ISFT 194";
+        private const string Institucion = Configuracion.NombreInstitucion;
 
-        public static void ImprimirRecibo(ReciboPagoDto recibo)
+        public static void ImprimirRecibo(ReciboPagoDTO recibo)
         {
             var documento = new DocumentoSimple($"Recibo {recibo.Numero}")
                 .Titulo(Institucion)
@@ -21,7 +22,7 @@ namespace CooperadoraISFT94.Forms.Utils
                 .Dato("Fecha", recibo.Fecha.ToString("dd/MM/yyyy HH:mm"))
                 .Dato("Socio", recibo.Socio);
 
-            if (recibo.PagadoPor is not null)
+            if (recibo.PagadoPor.Length > 0)
                 documento.Dato("Pagó", $"{recibo.PagadoPor} (responsable)");
 
             documento.Dato("Medio de pago", recibo.MedioPago)
@@ -36,7 +37,7 @@ namespace CooperadoraISFT94.Forms.Utils
             documento.MostrarVistaPrevia();
         }
 
-        public static void ImprimirResumenCaja(ResumenCajaDto resumen, IReadOnlyList<MovimientoDto> movimientos)
+        public static void ImprimirResumenCaja(ResumenCajaDTO resumen, IReadOnlyList<MovimientoDTO> movimientos)
         {
             var caja = resumen.Caja;
             var documento = new DocumentoSimple($"Caja {caja.Id}")
@@ -69,7 +70,7 @@ namespace CooperadoraISFT94.Forms.Utils
                        new[] { 2.2f, 1.3f, 2f, 1.8f, 3.5f, 1.8f, 1.8f, 1.4f },
                        movimientos.OrderBy(m => m.Fecha).Select(m => new[]
                        {
-                           m.Fecha.ToString("dd/MM HH:mm"), m.Tipo.ToString(), m.Clasificacion, m.Grupo, m.Detalle,
+                           m.Fecha.ToString("dd/MM HH:mm"), m.Tipo.Texto(), m.Clasificacion, m.Grupo, m.Detalle,
                            m.MedioPago, m.MontoConSigno.ToString("C2"), m.Anulado ? "Anulado" : "Vigente"
                        }));
 

@@ -1,67 +1,81 @@
-using CooperadoraISFT94.Common.Exceptions;
-using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.Domain;
-using CooperadoraISFT94.Repository.Memoria;
+using CooperadoraISFT94.Dto;
 using CooperadoraISFT94.Repository;
-using CooperadoraISFT94.Service.Interfaces;
 
 namespace CooperadoraISFT94.Service
 {
-    public sealed class AuditoriaService : IAuditoriaService
+    public class AuditoriaService
     {
-        private static readonly Lazy<AuditoriaService> _instancia = new(() =>
-            new AuditoriaService(AuditoriaRepository.Instancia, UsuarioRepository.Instancia));
-        public static AuditoriaService Instancia => _instancia.Value;
+        private readonly IRepository<Auditoria> repositorio;
+        private readonly IRepository<Usuario> usuarioRepositorio;
+        private readonly Func<DateTime> reloj;
 
-        private readonly IAuditoriaRepository _auditorias;
-        private readonly IUsuarioRepository _usuarios;
-        private readonly Func<DateTime> _reloj;
-
-        /// <param name="reloj">De dónde sale la fecha y hora actual; los tests pasan una fija.</param>
-        internal AuditoriaService(IAuditoriaRepository auditorias, IUsuarioRepository usuarios, Func<DateTime>? reloj = null)
+        public AuditoriaService()
+            : this(Repositorios.Auditorias, Repositorios.Usuarios)
         {
-            _auditorias = auditorias;
-            _usuarios = usuarios;
-            _reloj = reloj ?? (() => DateTime.Now);
         }
 
-        public void Registrar(int usuarioId, AccionAuditoria accion, string entidadAfectada, int entidadId, string? detalle = null)
+        // reloj: de dónde sale la fecha y hora actual; los tests pasan una fija.
+        public AuditoriaService(IRepository<Auditoria> repositorio, IRepository<Usuario> usuarioRepositorio,
+            Func<DateTime>? reloj = null)
         {
-            var usuario = _usuarios.ObtenerExistente(usuarioId);
-            _auditorias.Agregar(new Auditoria(usuario, accion, entidadAfectada, entidadId, _reloj(), detalle));
+            this.repositorio = repositorio;
+            this.usuarioRepositorio = usuarioRepositorio;
+            this.reloj = reloj ?? (() => DateTime.Now);
         }
 
-        public IReadOnlyList<AuditoriaDto> Obtener(AuditoriaFiltroDto filtro)
+        public void Registrar(int usuarioId, AccionAuditoria accion, string entidadAfectada, int entidadId, string detalle)
         {
-            ArgumentNullException.ThrowIfNull(filtro);
-            if (filtro.Accion is AccionAuditoria accionElegida && !Enum.IsDefined(accionElegida))
-                throw new ReglaNegocioException("La acción elegida no es válida.");
-            if (filtro.Desde is DateTime d && filtro.Hasta is DateTime h && d.Date > h.Date)
-                throw new ReglaNegocioException("La fecha \"desde\" no puede ser posterior a la fecha \"hasta\".");
+            Usuario usuario = usuarioRepositorio.ObtenerExistente(usuarioId);
+            Auditoria registro = new Auditoria(repositorio.ObtenerProximoId(), usuario, accion, entidadAfectada, entidadId,
+                reloj(), detalle);
+            repositorio.Agregar(registro);
+        }
 
-            IEnumerable<Auditoria> registros = _auditorias.ObtenerTodos();
-
-            if (filtro.Desde is DateTime desde)
-                registros = registros.Where(a => a.Fecha.Date >= desde.Date);
-            if (filtro.Hasta is DateTime hasta)
-                registros = registros.Where(a => a.Fecha.Date <= hasta.Date);
-            if (filtro.Accion is AccionAuditoria accion)
-                registros = registros.Where(a => a.Accion == accion);
-            if (!string.IsNullOrWhiteSpace(filtro.Texto))
+        public List<AuditoriaDTO> Obtener(AuditoriaFiltroDTO filtro)
+        {
+            if (filtro == null)
             {
-                var texto = filtro.Texto.Trim();
-                registros = registros.Where(a =>
-                    a.Usuario.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
-                    a.EntidadAfectada.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
-                    a.Detalle.Contains(texto, StringComparison.OrdinalIgnoreCase));
+                throw new ArgumentException("El filtro es obligatorio.");
+            }
+            if (filtro.Desde.HasValue && filtro.Hasta.HasValue && filtro.Desde.Value.Date > filtro.Hasta.Value.Date)
+            {
+                throw new NegocioException("La fecha \"desde\" no puede ser posterior a la fecha \"hasta\".");
             }
 
-            return registros
-                       .OrderByDescending(a => a.Fecha)
-                       .ThenByDescending(a => a.Id)
-                       .Select(AuditoriaMapper.ADto)
-                       .ToList();
+            IEnumerable<Auditoria> registros = repositorio.ObtenerTodos();
+            if (filtro.Desde.HasValue)
+            {
+                registros = registros.Where(a => a.Fecha.Date >= filtro.Desde.Value.Date);
+            }
+            if (filtro.Hasta.HasValue)
+            {
+                registros = registros.Where(a => a.Fecha.Date <= filtro.Hasta.Value.Date);
+            }
+            if (filtro.Accion.HasValue)
+            {
+                registros = registros.Where(a => a.Accion == filtro.Accion.Value);
+            }
+
+            return registros.OrderByDescending(a => a.Fecha)
+                            .ThenByDescending(a => a.Id)
+                            .Select(MapearADto)
+                            .ToList();
+        }
+
+        private static AuditoriaDTO MapearADto(Auditoria registro)
+        {
+            AuditoriaDTO dto = new AuditoriaDTO();
+            dto.Id = registro.Id;
+            dto.Fecha = registro.Fecha;
+            dto.Usuario = registro.Usuario.NombreCompleto;
+            dto.Accion = registro.Accion;
+            dto.EntidadAfectada = registro.EntidadAfectada;
+            dto.EntidadId = registro.EntidadId;
+            dto.Detalle = registro.Detalle;
+            return dto;
         }
     }
 }
