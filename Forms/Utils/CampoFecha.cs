@@ -14,6 +14,7 @@ namespace CooperadoraISFT94.Forms.Utils
         private readonly TextBox _texto = new() { BorderStyle = BorderStyle.FixedSingle };
         private readonly Button _boton = new() { Text = "▾", Width = 26, FlatStyle = FlatStyle.Flat };
         private DateTime _valor = DateTime.Today;
+        private ToolStripDropDown? _desplegable;
 
         /// <summary>Se dispara cuando cambia la fecha (escrita o elegida).</summary>
         public event EventHandler? ValueChanged;
@@ -81,8 +82,12 @@ namespace CooperadoraISFT94.Forms.Utils
                 _texto.Text = _valor.ToString(Formato);
         }
 
+        // El desplegable anterior se libera recién al abrir otro (o al liberar el campo): liberarlo en su
+        // evento Closed rompe a WinForms, que sigue usándolo después de cerrarlo (ObjectDisposedException).
         private void MostrarCalendario()
         {
+            _desplegable?.Dispose();
+
             var calendario = new Calendario(_valor);
             var anfitrion = new ToolStripControlHost(calendario) { Margin = Padding.Empty, Padding = Padding.Empty, AutoSize = false, Size = calendario.Size };
             var desplegable = new ToolStripDropDown { Padding = Padding.Empty, BackColor = Tema.Borde };
@@ -93,8 +98,18 @@ namespace CooperadoraISFT94.Forms.Utils
                 desplegable.Close();
                 Value = fecha;
             };
-            desplegable.Closed += (_, _) => desplegable.Dispose();
+            _desplegable = desplegable;
             desplegable.Show(this, new Point(0, Height));
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _desplegable?.Dispose();
+                _desplegable = null;
+            }
+            base.Dispose(disposing);
         }
 
         /// <summary>Mes con sus días como botones; las flechas cambian de mes.</summary>
