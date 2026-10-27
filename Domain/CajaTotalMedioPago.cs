@@ -1,5 +1,4 @@
 using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Common.Exceptions;
 
 namespace CooperadoraISFT94.Domain
 {
@@ -9,13 +8,9 @@ namespace CooperadoraISFT94.Domain
     {
         public CajaTotalMedioPago(int id, Caja caja, MedioPago medioPago)
         {
-            if (caja == null || medioPago == null)
-            {
-                throw new NegocioException("El total debe pertenecer a una caja y a un medio de pago.");
-            }
             Id = id;
-            Caja = caja;
-            MedioPago = medioPago;
+            Caja = Validaciones.ExigirDato(caja, "El total debe pertenecer a una caja.");
+            MedioPago = Validaciones.ExigirDato(medioPago, "El total debe pertenecer a un medio de pago.");
         }
 
         public int Id { get; private set; }

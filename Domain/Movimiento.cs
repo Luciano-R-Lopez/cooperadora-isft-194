@@ -12,17 +12,9 @@ namespace CooperadoraISFT94.Domain
 
         protected Movimiento(int id, Usuario usuario, DateTime fecha, decimal monto, MedioPago medioPago)
         {
-            if (usuario == null)
-            {
-                throw new NegocioException("El movimiento debe registrarlo un usuario.");
-            }
-            if (medioPago == null)
-            {
-                throw new NegocioException("El medio de pago es obligatorio.");
-            }
             Id = id;
-            Usuario = usuario;
-            MedioPago = medioPago;
+            Usuario = Validaciones.ExigirDato(usuario, "El movimiento debe registrarlo un usuario.");
+            MedioPago = Validaciones.ExigirDato(medioPago, "El medio de pago es obligatorio.");
             Fecha = fecha;
             Monto = Validaciones.ExigirMontoPositivo(monto, "monto");
         }
@@ -73,11 +65,21 @@ namespace CooperadoraISFT94.Domain
         // una caja cerrada ya se contó y no se modifica.
         public void Anular(Usuario usuario, DateTime fecha, string motivo, CajaTotalMedioPago totalMedioPago)
         {
-            if (usuario == null)
-            {
-                throw new NegocioException("La anulación debe registrarla un usuario.");
-            }
+            Validaciones.ExigirDato(usuario, "La anulación debe registrarla un usuario.");
             string motivoValido = Validaciones.ExigirTexto(motivo, "motivo de la anulación", LargoMaximoMotivoAnulacion);
+            Caja caja = ExigirAnulable();
+            ExigirTotalCorrespondiente(caja, totalMedioPago);
+
+            Revertir(caja, totalMedioPago);
+            Anulado = true;
+            FechaAnulacion = fecha;
+            AnuladoPor = usuario;
+            MotivoAnulacion = motivoValido;
+        }
+
+        // Devuelve la caja del movimiento si todavía se puede anular.
+        private Caja ExigirAnulable()
+        {
             if (Anulado)
             {
                 throw new NegocioException("El movimiento ya está anulado.");
@@ -90,13 +92,7 @@ namespace CooperadoraISFT94.Domain
             {
                 throw new NegocioException("Solo se pueden anular movimientos de la caja abierta.");
             }
-            ExigirTotalCorrespondiente(Caja, totalMedioPago);
-
-            Revertir(Caja, totalMedioPago);
-            Anulado = true;
-            FechaAnulacion = fecha;
-            AnuladoPor = usuario;
-            MotivoAnulacion = motivoValido;
+            return Caja;
         }
 
         // Lo que cambia según el tipo: el ingreso acredita y el egreso debita.

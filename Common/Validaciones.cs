@@ -6,6 +6,26 @@ namespace CooperadoraISFT94.Common
     // Validaciones que comparten varias entidades. Cada una lanza NegocioException con un mensaje para el usuario.
     public static class Validaciones
     {
+        // Para los datos obligatorios que son otra entidad (usuario, socio, medio de pago...).
+        public static T ExigirDato<T>(T? valor, string mensaje) where T : class
+        {
+            if (valor == null)
+            {
+                throw new NegocioException(mensaje);
+            }
+            return valor;
+        }
+
+        // campo: "categoría", "acción"... para el mensaje "La categoría no es válida."
+        public static T ExigirEnum<T>(T valor, string campo) where T : struct, Enum
+        {
+            if (!Enum.IsDefined(valor))
+            {
+                throw new NegocioException("La " + campo + " no es válida.");
+            }
+            return valor;
+        }
+
         public static string ExigirTexto(string? valor, string campo, int largoMaximo)
         {
             string texto = (valor ?? string.Empty).Trim();

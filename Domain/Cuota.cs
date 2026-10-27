@@ -9,12 +9,8 @@ namespace CooperadoraISFT94.Domain
         // Una cuota nace pendiente; pasa a pagada al cobrarla y vuelve a pendiente solo si se anula ese cobro.
         public Cuota(int id, Socio socio, decimal monto, int anio)
         {
-            if (socio == null)
-            {
-                throw new NegocioException("La cuota debe pertenecer a un socio.");
-            }
             Id = id;
-            Socio = socio;
+            Socio = Validaciones.ExigirDato(socio, "La cuota debe pertenecer a un socio.");
             Monto = Validaciones.ExigirMontoPositivo(monto, "monto de la cuota");
             Anio = Validaciones.ExigirAnio(anio);
             Estado = EstadoCuota.Pendiente;

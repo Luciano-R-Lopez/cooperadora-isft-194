@@ -1,5 +1,5 @@
+using CooperadoraISFT94.Common;
 using CooperadoraISFT94.Common.Enums;
-using CooperadoraISFT94.Common.Exceptions;
 
 namespace CooperadoraISFT94.Domain
 {
@@ -11,16 +11,8 @@ namespace CooperadoraISFT94.Domain
             GrupoEgreso grupo)
             : base(id, usuario, fecha, monto, medioPago)
         {
-            if (motivo == null)
-            {
-                throw new NegocioException("El motivo del egreso es obligatorio.");
-            }
-            if (grupo == null)
-            {
-                throw new NegocioException("El grupo del egreso es obligatorio.");
-            }
-            Motivo = motivo;
-            Grupo = grupo;
+            Motivo = Validaciones.ExigirDato(motivo, "El motivo del egreso es obligatorio.");
+            Grupo = Validaciones.ExigirDato(grupo, "El grupo del egreso es obligatorio.");
         }
 
         public MotivoEgreso Motivo { get; private set; }

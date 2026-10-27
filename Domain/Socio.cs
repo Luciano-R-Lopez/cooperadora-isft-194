@@ -68,14 +68,7 @@ namespace CooperadoraISFT94.Domain
         public Categoria Categoria
         {
             get { return categoria; }
-            set
-            {
-                if (!Enum.IsDefined(value))
-                {
-                    throw new NegocioException("La categoría no es válida.");
-                }
-                categoria = value;
-            }
+            set { categoria = Validaciones.ExigirEnum(value, "categoría"); }
         }
 
         // Socio de categoría Responsable que paga por este socio; null si no tiene.
