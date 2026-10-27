@@ -106,7 +106,10 @@ namespace CooperadoraISFT94.Views.Contador
             var btnExportar = Tema.Secundario(new Button { Text = "Exportar a CSV", Size = new Size(140, 32) });
             btnExportar.Click += (_, _) => ExportarCsv.Grilla(_grilla, "Movimientos");
 
-            acciones.Controls.AddRange(new Control[] { _btnAnular, btnImprimir, btnExportar });
+            var btnEgresos = Tema.Secundario(new Button { Text = "Exportar egresos por grupo", Size = new Size(220, 32) });
+            btnEgresos.Click += (_, _) => ExportarEgresosPorGrupo();
+
+            acciones.Controls.AddRange(new Control[] { _btnAnular, btnImprimir, btnExportar, btnEgresos });
 
             // Orden de agregado: primero el que llena, después la barra superior.
             Controls.Add(_grilla);
@@ -256,6 +259,30 @@ namespace CooperadoraISFT94.Views.Contador
 
             Recargar();
             Ui.Info("Movimiento anulado. Se revirtió su efecto en la caja.");
+        }
+
+        private void ExportarEgresosPorGrupo()
+        {
+            using var dialogo = new ExportarEgresosDialog();
+            if (dialogo.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            try
+            {
+                var egresos = _controller.ObtenerEgresos(dialogo.Desde, dialogo.Hasta);
+                if (egresos.Count == 0)
+                {
+                    Ui.Info("No hay egresos en ese período.");
+                    return;
+                }
+
+                if (ExportarCsv.EgresosPorGrupo(egresos, dialogo.Desde, dialogo.Hasta))
+                    Ui.Info($"Se exportaron {egresos.Count} egresos.");
+            }
+            catch (NegocioException ex)
+            {
+                Ui.Error(ex.Message);
+            }
         }
 
         private void ImprimirResumen()

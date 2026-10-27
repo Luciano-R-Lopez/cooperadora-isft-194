@@ -9,10 +9,12 @@ namespace CooperadoraISFT94.DTOs.Usuarios
         string Nombre,
         string Apellido,
         bool Activo,
-        Rol Rol)
+        IReadOnlyList<Rol> Roles)
     {
         public string NombreCompleto => $"{Nombre} {Apellido}";
-        public string RolTexto => Rol.ToString();
+        public string RolesTexto => string.Join(", ", Roles);
         public string EstadoTexto => Activo ? "Activo" : "Inactivo";
+
+        public bool TieneRol(Rol rol) => Roles.Contains(rol);
     }
 }

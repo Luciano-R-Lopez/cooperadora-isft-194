@@ -73,9 +73,9 @@ namespace CooperadoraISFT94.Views.Shell
 
             var tabs = new Pestanias { Dock = DockStyle.Fill };
 
-            var modulos = ModulosPorRol.De(_usuario.Rol);
+            var modulos = ModulosPorRol.De(_usuario.Roles);
             if (modulos.Count == 0)
-                AgregarTab(tabs, _usuario.RolTexto, new ModuloPlaceholderView(_usuario.RolTexto));
+                AgregarTab(tabs, _usuario.RolesTexto, new ModuloPlaceholderView(_usuario.RolesTexto));
             foreach (var modulo in modulos)
                 AgregarTab(tabs, modulo.Titulo, modulo.CrearVista());
 
@@ -89,7 +89,7 @@ namespace CooperadoraISFT94.Views.Shell
         }
 
         private void MostrarUsuario(UsuarioDto usuario) =>
-            _lblUsuario.Text = $"{usuario.NombreCompleto}  ({usuario.RolTexto})";
+            _lblUsuario.Text = $"{usuario.NombreCompleto}  ({usuario.RolesTexto})";
 
         private static void AgregarTab(TabControl tabs, string titulo, Control vista)
         {

@@ -46,7 +46,28 @@ namespace CooperadoraISFT94.Tests
 
             Assert.Equal("Omar", usuario.Nombre);
             Assert.True(usuario.Activo);
-            Assert.Equal(Rol.Operador, usuario.Rol);
+            Assert.Equal(new[] { Rol.Operador }, usuario.Roles);
+        }
+
+        [Fact]
+        public void Un_usuario_puede_tener_varios_roles_sin_repetirlos()
+        {
+            var usuario = new Usuario("pablo.paz", "Pablo", "Paz", "hash", true, Rol.Contador, Rol.Operador, Rol.Contador);
+
+            Assert.Equal(new[] { Rol.Operador, Rol.Contador }, usuario.Roles);
+            Assert.True(usuario.TieneRol(Rol.Operador));
+            Assert.True(usuario.TieneRol(Rol.Contador));
+            Assert.False(usuario.TieneRol(Rol.Administrador));
+        }
+
+        [Fact]
+        public void Un_usuario_sin_roles_se_rechaza_y_al_editar_queda_como_estaba()
+        {
+            Assert.Throws<ReglaNegocioException>(() => new Usuario("ana", "Ana", "Paz", "hash", true, Array.Empty<Rol>()));
+
+            var usuario = Crear.Usuario();
+            Assert.Throws<ReglaNegocioException>(() => usuario.ActualizarDatos("Omar", "Operador", true, Array.Empty<Rol>()));
+            Assert.Equal(new[] { Rol.Operador }, usuario.Roles);
         }
     }
 }

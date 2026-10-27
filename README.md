@@ -21,7 +21,7 @@ Usuarios de prueba (se cargan en `Repositories/InMemory/DatosIniciales.cs`):
 | `admin` | `admin123` | Administrador: usuarios, catálogos y auditoría |
 | `operador` | `operador123` | Operador: socios, cuotas e ingresos |
 | `contador` | `contador123` | Contador: caja, egresos y movimientos |
-| `pablo.paz` | `operador123` | Segundo operador |
+| `pablo.paz` | `operador123` | Operador y Contador (usuario con dos roles) |
 
 ### Datos de ejemplo
 
@@ -91,7 +91,9 @@ dotnet test CooperadoraISFT94.slnx
 - **Grupo de egreso** (Estudiantes, Administración, Otros, editables por el administrador): cada egreso se carga
   con su grupo, independiente del motivo. Caja y movimientos tiene columna y filtro por grupo, y el resumen impreso
   de caja muestra el total de egresos de cada grupo.
-- **Auditoría con detalle** de qué cambió (por ejemplo "Rol: Operador → Contador") y **filtros** por fecha,
+- **Usuarios con varios roles:** en Administración se tildan uno o más roles (por ejemplo, Operador y Contador)
+  y el usuario ve las pestañas de todos. Un administrador no puede quitarse su propio rol de Administrador.
+- **Auditoría con detalle** de qué cambió (por ejemplo "Roles: Operador → Operador, Contador") y **filtros** por fecha,
   acción y texto.
 
 ### Seguridad y soporte
@@ -103,6 +105,8 @@ dotnet test CooperadoraISFT94.slnx
 - Recibo de cuota y resumen de caja con la vista previa de impresión de Windows
   (para PDF, elegir la impresora "Microsoft Print to PDF").
 - **Exportar a CSV** (se abre con Excel) los listados de socios, morosos, movimientos y auditoría.
+- **Exportar egresos por grupo** (Caja y movimientos): se elige un período y se genera un CSV con el total de cada
+  grupo (Estudiantes, Administración, Otros) y el detalle de sus gastos con subtotales. No incluye los anulados.
 
 ### Interfaz
 - **Tema oscuro y sobrio** en todas las pantallas: pestañas, desplegables, grillas, barras de desplazamiento,
@@ -113,9 +117,10 @@ dotnet test CooperadoraISFT94.slnx
 - Campo de fecha propio con calendario desplegable, y avisos propios en lugar de los de Windows.
 
 ### Tests
-- Proyecto `Tests/CooperadoraISFT94.Tests` (xUnit) con **61 tests**: reglas del dominio (caja, movimientos,
+- Proyecto `Tests/CooperadoraISFT94.Tests` (xUnit) con **66 tests**: reglas del dominio (caja, movimientos,
   socios, cuotas, contraseñas) y servicios (DNI repetido, generación de cuotas, pagos, pago del responsable,
-  anulaciones, resumen de caja, bloqueo de login, catálogos, grupos de egreso y filtros de auditoría).
+  anulaciones, resumen de caja, bloqueo de login, catálogos, grupos de egreso, exportación de egresos, usuarios multirol
+  y filtros de auditoría).
 - Los servicios reciben sus repositorios y un reloj por constructor, así cada test usa datos propios y una hora fija.
 
 ## Pendiente

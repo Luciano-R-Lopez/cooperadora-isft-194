@@ -12,5 +12,11 @@ namespace CooperadoraISFT94.Services.Interfaces
         /// esas cuotas vuelven a quedar pendientes.
         /// </summary>
         MovimientoDto Anular(int movimientoId, string motivo, int usuarioId);
+
+        /// <summary>
+        /// Egresos vigentes (sin los anulados) de todas las cajas entre dos fechas, ambas incluidas,
+        /// ordenados por grupo y fecha. Para exportar los gastos de un período.
+        /// </summary>
+        IReadOnlyList<MovimientoDto> ObtenerEgresos(DateTime desde, DateTime hasta);
     }
 }

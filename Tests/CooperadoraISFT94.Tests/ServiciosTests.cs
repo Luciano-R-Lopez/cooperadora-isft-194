@@ -1,3 +1,5 @@
+using System.Globalization;
+using CooperadoraISFT94.Common;
 using CooperadoraISFT94.Common.Exceptions;
 using CooperadoraISFT94.DTOs.Auditorias;
 using CooperadoraISFT94.DTOs.Auth;
@@ -8,6 +10,9 @@ using CooperadoraISFT94.DTOs.Movimientos;
 using CooperadoraISFT94.DTOs.Socios;
 using CooperadoraISFT94.DTOs.Usuarios;
 using CooperadoraISFT94.Enums;
+using CooperadoraISFT94.Models;
+using CooperadoraISFT94.Views.Common;
+using CooperadoraISFT94.Views.Shell;
 
 namespace CooperadoraISFT94.Tests
 {
@@ -463,6 +468,71 @@ namespace CooperadoraISFT94.Tests
             Assert.Contains(c.Catalogos.ObtenerGruposEgreso(incluirInactivos: true), g => g.Id == otros.Id);
             Assert.Throws<ReglaNegocioException>(() =>
                 c.Egresos.Registrar(new EgresoCrearDto(10m, c.Materiales.Id, otros.Id, c.Efectivo.Id), c.Contador.Id));
+        }
+    }
+
+    public class MultirolTests
+    {
+        [Fact]
+        public void El_administrador_puede_sumarse_roles_pero_no_quitarse_el_de_administrador()
+        {
+            var c = new Contexto();
+            var admin = c.Usuarios.Agregar(new Usuario("admin", "Ana", "Admin", PasswordHasher.Hashear("admin123"), true, Rol.Administrador));
+
+            var editado = c.UsuariosServicio.Editar(
+                new UsuarioEditarDto(admin.Id, "Ana", "Admin", null, true, [Rol.Administrador, Rol.Contador]), admin.Id);
+
+            Assert.Equal(new[] { Rol.Administrador, Rol.Contador }, editado.Roles);
+            Assert.Contains(c.Auditorias.ObtenerTodos(), a => a.Detalle == "Roles: Administrador → Administrador, Contador");
+            Assert.Throws<ReglaNegocioException>(() => c.UsuariosServicio.Editar(
+                new UsuarioEditarDto(admin.Id, "Ana", "Admin", null, true, [Rol.Contador]), admin.Id));
+        }
+
+        [Fact]
+        public void Un_usuario_con_varios_roles_ve_los_modulos_de_todos_sin_repetir()
+        {
+            var titulos = ModulosPorRol.De([Rol.Contador, Rol.Operador, Rol.Contador]).Select(m => m.Titulo);
+
+            Assert.Equal(new[] { "Socios y cuotas", "Cuotas y morosos", "Ingresos", "Caja y movimientos" }, titulos);
+        }
+    }
+
+    public class ExportarEgresosTests
+    {
+        [Fact]
+        public void Exporta_los_egresos_vigentes_del_periodo_organizados_por_grupo()
+        {
+            var c = new Contexto();
+            c.AbrirCaja();
+            c.Ingresos.Registrar(new IngresoCrearDto(1000m, CategoriaIngreso.Donacion, c.Efectivo.Id), c.Operador.Id);
+            c.Egresos.Registrar(new EgresoCrearDto(100m, c.Materiales.Id, c.Estudiantes.Id, c.Efectivo.Id), c.Contador.Id);
+            c.Egresos.Registrar(new EgresoCrearDto(300m, c.Materiales.Id, c.Administracion.Id, c.Efectivo.Id), c.Contador.Id);
+            var anulado = c.Egresos.Registrar(new EgresoCrearDto(50m, c.Materiales.Id, c.Estudiantes.Id, c.Efectivo.Id), c.Contador.Id);
+            c.MovimientosServicio.Anular(anulado.Id, "Cargado dos veces", c.Contador.Id);
+
+            Assert.Throws<ReglaNegocioException>(() => c.MovimientosServicio.ObtenerEgresos(c.Ahora, c.Ahora.AddDays(-1)));
+            Assert.Empty(c.MovimientosServicio.ObtenerEgresos(c.Ahora.AddDays(1), c.Ahora.AddDays(2)));
+
+            var egresos = c.MovimientosServicio.ObtenerEgresos(c.Ahora, c.Ahora);
+            Assert.Equal(new[] { "Administración", "Estudiantes" }, egresos.Select(e => e.Grupo));
+
+            // Mismo formato regional que fuerza la aplicación al arrancar.
+            var culturaAnterior = CultureInfo.CurrentCulture;
+            CultureInfo.CurrentCulture = new CultureInfo("es-AR");
+            string csv;
+            try
+            {
+                csv = ExportarCsv.ArmarEgresosPorGrupo(egresos, c.Ahora, c.Ahora);
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = culturaAnterior;
+            }
+
+            Assert.Contains("Administración;1;$ 300,00;75,0 %", csv);
+            Assert.Contains("Estudiantes;1;$ 100,00;25,0 %", csv);
+            Assert.Contains("Total;2;$ 400,00;100,0 %", csv);
+            Assert.Contains("Subtotal Estudiantes;;;$ 100,00;", csv);
         }
     }
 }

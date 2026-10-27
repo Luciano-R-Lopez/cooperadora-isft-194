@@ -106,6 +106,20 @@ namespace CooperadoraISFT94.Services
             return ADto(movimiento, detalles);
         }
 
+        public IReadOnlyList<MovimientoDto> ObtenerEgresos(DateTime desde, DateTime hasta)
+        {
+            if (desde.Date > hasta.Date)
+                throw new ReglaNegocioException("La fecha \"desde\" no puede ser posterior a la fecha \"hasta\".");
+
+            return _movimientos.ObtenerTodos()
+                               .OfType<Egreso>()
+                               .Where(e => !e.Anulado && e.Fecha.Date >= desde.Date && e.Fecha.Date <= hasta.Date)
+                               .OrderBy(e => e.Grupo.Nombre)
+                               .ThenBy(e => e.Fecha)
+                               .Select(e => ADto(e, Enumerable.Empty<DetalleIngresoCuota>()))
+                               .ToList();
+        }
+
         private static MovimientoDto ADto(Movimiento m, IEnumerable<DetalleIngresoCuota> detalles) =>
             new(m.Id, m.Tipo, m.Fecha, m.Clasificacion, (m as Egreso)?.Grupo.Nombre ?? SinDetalle, DescribirDetalle(detalles),
                 m.MedioPago.Nombre, m.Monto, m.Usuario.NombreCompleto, m.Anulado, m.MotivoAnulacion);

@@ -25,7 +25,7 @@ Misma lógica que el proyecto Eventos: cada capa hace solo su parte.
 ## Modelo de dominio (según `cooperadora_uml.drawio.xml`)
 
 ```
-Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
+Entidad ─┬─ Persona ─┬─ Usuario  (Roles, Activo)
          │           └─ Socio    (Categoria, Activo, Responsable?) ──► Socio (Responsable)
          ├─ Movimiento (abstracta: Usuario, Fecha, Monto, MedioPago, Caja, Anulado, AfectarCaja(), Anular())
          │     ├─ Ingreso (CategoriaIngreso)
@@ -78,11 +78,12 @@ Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
   aparte del motivo, porque un mismo motivo (por ejemplo, un arreglo de computadora) puede ser de cualquier grupo.
   Los movimientos se filtran por grupo y el resumen impreso de caja totaliza los egresos por grupo.
 - **Auditoría:** cada servicio llama a `IAuditoriaService.Registrar` al dar de alta / modificar / dar de baja, con un
-  detalle de qué cambió (`DescripcionCambios`: "Rol: Operador → Contador"). Solo la ve el administrador, con filtros.
+  detalle de qué cambió (`DescripcionCambios`: "Roles: Operador → Operador, Contador"). Solo la ve el administrador, con filtros.
 - **Login:** 5 intentos fallidos seguidos bloquean ese nombre de usuario por 5 minutos (también si no existe, para no
   revelar qué usuarios hay). Cada usuario puede cambiar su propia contraseña ("Mi contraseña").
 - **Reportes:** `Views/Common/Reportes.cs` imprime el recibo de cuota y el resumen de caja (vista previa de Windows;
-  "Microsoft Print to PDF" para PDF). `ExportarCsv` exporta cualquier grilla tal como se ve (separador `;` para Excel).
+  "Microsoft Print to PDF" para PDF). `ExportarCsv` exporta cualquier grilla tal como se ve (separador `;` para Excel)
+  y arma el CSV de egresos de un período organizados por grupo (resumen con totales y detalle con subtotales).
 - **Errores inesperados:** se muestran y quedan guardados en `%LOCALAPPDATA%\CooperadoraISFT194\errores.log`
   (`RegistroErrores`).
 - **Tema visual (oscuro):** `Views/Common/Tema.cs` tiene la paleta y estila los controles; cada ventana llama a `Tema.Aplicar(this)`.
@@ -94,6 +95,9 @@ Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
 - **Formato regional:** `Program.cs` fija la cultura `es-AR`, así los montos se ven "$ 5.000,00" sin importar
   la configuración de Windows.
 - **Módulos por rol:** `Views/Shell/ModulosPorRol.cs`. Sumar un módulo es agregar una línea ahí.
+- **Multirol:** un usuario tiene uno o más roles (`Usuario.Roles`) y ve las pestañas de todos. `ExigirRol` pasa si el
+  usuario tiene ese rol entre los suyos. Un administrador puede sumarse o quitarse otros roles, pero no el de
+  Administrador (ni desactivarse), para no quedarse sin acceso.
 - **Permisos:** Operador = socios, cuotas (valor, generación, cobro, morosos) e ingresos (donación/subsidio);
   Contador = caja, egresos, consulta y anulación de movimientos; Administrador = usuarios, catálogos y auditoría.
 

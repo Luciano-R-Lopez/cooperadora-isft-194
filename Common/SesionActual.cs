@@ -30,6 +30,6 @@ namespace CooperadoraISFT94.Common
             UsuarioActualizado?.Invoke(usuario);
         }
 
-        public bool TieneRol(Rol rol) => Usuario?.Rol == rol;
+        public bool TieneRol(Rol rol) => Usuario?.TieneRol(rol) == true;
     }
 }

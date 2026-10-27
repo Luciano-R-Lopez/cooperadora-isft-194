@@ -7,6 +7,6 @@ namespace CooperadoraISFT94.Services
     public static class UsuarioMapper
     {
         public static UsuarioDto ADto(Usuario u) =>
-            new(u.Id, u.NombreUsuario, u.Nombre, u.Apellido, u.Activo, u.Rol);
+            new(u.Id, u.NombreUsuario, u.Nombre, u.Apellido, u.Activo, u.Roles.ToList());
     }
 }

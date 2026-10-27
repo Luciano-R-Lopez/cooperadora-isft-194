@@ -17,7 +17,7 @@ namespace CooperadoraISFT94.Views.Admin
         private readonly TextBox _txtApellido = Ui.Campo(15, 149, 285);
         private readonly TextBox _txtPassword = Ui.Campo(15, 202, 285);
         private readonly Label _lblPassword = Ui.Etiqueta("Contraseña", 15, 182);
-        private readonly ComboBox _cmbRol = new();
+        private readonly CheckedListBox _lstRoles = new() { CheckOnClick = true, BorderStyle = BorderStyle.FixedSingle };
         private readonly CheckBox _chkActivo = new();
         private readonly Button _btnNuevo = new();
         private readonly DataGridView _grilla = Ui.CrearGrilla();
@@ -59,16 +59,15 @@ namespace CooperadoraISFT94.Views.Admin
                 Ui.Etiqueta("Nombre", 15, 78), _txtNombre,
                 Ui.Etiqueta("Apellido", 15, 131), _txtApellido,
                 _lblPassword, _txtPassword,
-                Ui.Etiqueta("Rol", 15, 240)
+                Ui.Etiqueta("Roles (uno o más)", 15, 240)
             });
 
-            _cmbRol.Location = new Point(15, 262);
-            _cmbRol.Size = new Size(285, 28);
-            _cmbRol.DropDownStyle = ComboBoxStyle.DropDownList;
-            _cmbRol.Items.AddRange(Enum.GetValues<Rol>().Cast<object>().ToArray());
-            _panelFormulario.Controls.Add(_cmbRol);
+            _lstRoles.Location = new Point(15, 262);
+            _lstRoles.Size = new Size(285, 72);
+            _lstRoles.Items.AddRange(Enum.GetValues<Rol>().Cast<object>().ToArray());
+            _panelFormulario.Controls.Add(_lstRoles);
 
-            var y = 300;
+            var y = 340;
 
             _chkActivo.Text = "Usuario activo";
             _chkActivo.Location = new Point(15, y + 8);
@@ -96,7 +95,7 @@ namespace CooperadoraISFT94.Views.Admin
             Ui.AgregarColumna(_grilla, "Id", nameof(UsuarioDto.Id));
             Ui.AgregarColumna(_grilla, "Nombre y apellido", nameof(UsuarioDto.NombreCompleto));
             Ui.AgregarColumna(_grilla, "Usuario", nameof(UsuarioDto.NombreUsuario));
-            Ui.AgregarColumna(_grilla, "Rol", nameof(UsuarioDto.RolTexto));
+            Ui.AgregarColumna(_grilla, "Roles", nameof(UsuarioDto.RolesTexto));
             Ui.AgregarColumna(_grilla, "Estado", nameof(UsuarioDto.EstadoTexto));
             _grilla.Columns[0].FillWeight = 20;
             _grilla.SelectionChanged += (_, _) => ActualizarBotones();
@@ -186,7 +185,7 @@ namespace CooperadoraISFT94.Views.Admin
             _txtApellido.Clear();
             _txtPassword.Clear();
             _chkActivo.Checked = true;
-            _cmbRol.SelectedIndex = 0;
+            MarcarRoles(Rol.Operador);
 
             _txtUsuario.Focus();
         }
@@ -205,7 +204,7 @@ namespace CooperadoraISFT94.Views.Admin
             _txtApellido.Text = usuario.Apellido;
             _txtPassword.Clear();
             _chkActivo.Checked = usuario.Activo;
-            _cmbRol.SelectedItem = usuario.Rol;
+            MarcarRoles(usuario.Roles.ToArray());
 
             _txtNombre.Focus();
         }
@@ -221,9 +220,15 @@ namespace CooperadoraISFT94.Views.Admin
             EntrarModoEdicion(usuario);
         }
 
+        private void MarcarRoles(params Rol[] roles)
+        {
+            for (var i = 0; i < _lstRoles.Items.Count; i++)
+                _lstRoles.SetItemChecked(i, roles.Contains((Rol)_lstRoles.Items[i]));
+        }
+
         private void Guardar()
         {
-            var rol = (Rol)_cmbRol.SelectedItem!;
+            var roles = _lstRoles.CheckedItems.Cast<Rol>().ToList();
 
             UsuarioDto guardado;
             string mensaje;
@@ -232,13 +237,13 @@ namespace CooperadoraISFT94.Views.Admin
                 if (_editandoId is int id)
                 {
                     guardado = _controller.Editar(new UsuarioEditarDto(
-                        id, _txtNombre.Text, _txtApellido.Text, _txtPassword.Text, _chkActivo.Checked, rol));
+                        id, _txtNombre.Text, _txtApellido.Text, _txtPassword.Text, _chkActivo.Checked, roles));
                     mensaje = "Usuario actualizado correctamente.";
                 }
                 else
                 {
                     guardado = _controller.Registrar(new UsuarioCrearDto(
-                        _txtUsuario.Text, _txtNombre.Text, _txtApellido.Text, _txtPassword.Text, _chkActivo.Checked, rol));
+                        _txtUsuario.Text, _txtNombre.Text, _txtApellido.Text, _txtPassword.Text, _chkActivo.Checked, roles));
                     mensaje = "Usuario creado correctamente.";
                 }
             }

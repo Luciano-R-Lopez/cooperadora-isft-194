@@ -10,7 +10,7 @@ namespace CooperadoraISFT94.Views.Shell
 
     /// <summary>
     /// Registro de qué módulos ve cada rol. Para sumar un módulo (o dárselo a otro rol)
-    /// se agrega una línea acá; la ventana principal no cambia.
+    /// se agrega una línea acá; la ventana principal no cambia. Un usuario con varios roles ve los módulos de todos.
     /// </summary>
     public static class ModulosPorRol
     {
@@ -35,7 +35,11 @@ namespace CooperadoraISFT94.Views.Shell
                 }
             };
 
-        public static IReadOnlyList<Modulo> De(Rol rol) =>
-            Registro.TryGetValue(rol, out var modulos) ? modulos : Array.Empty<Modulo>();
+        /// <summary>Los módulos de cada rol, en el orden de los roles (Administrador, Operador, Contador).</summary>
+        public static IReadOnlyList<Modulo> De(IEnumerable<Rol> roles) =>
+            roles.Distinct()
+                 .Order()
+                 .SelectMany(rol => Registro.TryGetValue(rol, out var modulos) ? modulos : Array.Empty<Modulo>())
+                 .ToList();
     }
 }

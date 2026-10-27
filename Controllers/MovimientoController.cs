@@ -40,6 +40,12 @@ namespace CooperadoraISFT94.Controllers
             return _movimientos.Anular(movimientoId, motivo, UsuarioActualId);
         }
 
+        public IReadOnlyList<MovimientoDto> ObtenerEgresos(DateTime desde, DateTime hasta)
+        {
+            ExigirRol(Rol.Contador);
+            return _movimientos.ObtenerEgresos(desde, hasta);
+        }
+
         public ResumenCajaDto ObtenerResumen(int cajaId)
         {
             ExigirRol(Rol.Contador);

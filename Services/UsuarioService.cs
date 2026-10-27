@@ -12,7 +12,7 @@ namespace CooperadoraISFT94.Services
     public sealed class UsuarioService : IUsuarioService
     {
         private const string MensajeAutoModificacion =
-            "No podés modificar tu propio rol ni desactivarte. Pedíselo a otro administrador.";
+            "No podés quitarte el rol de Administrador ni desactivarte. Pedíselo a otro administrador.";
 
         private static readonly Lazy<UsuarioService> _instancia = new(() =>
             new UsuarioService(UsuarioRepository.Instancia, AuditoriaService.Instancia));
@@ -42,14 +42,14 @@ namespace CooperadoraISFT94.Services
             // Los demás datos los valida el propio Usuario.
             ValidarPassword(dto.Password);
             var usuario = new Usuario(dto.NombreUsuario, dto.Nombre, dto.Apellido,
-                                      PasswordHasher.Hashear(dto.Password), dto.Activo, dto.Rol);
+                                      PasswordHasher.Hashear(dto.Password), dto.Activo, dto.Roles ?? Array.Empty<Rol>());
 
             if (_usuarios.ObtenerPorNombreUsuario(usuario.NombreUsuario) is not null)
                 throw new ReglaNegocioException("Ya existe un usuario con ese nombre de usuario.");
 
             _usuarios.Agregar(usuario);
             _auditoria.Registrar(actorId, AccionAuditoria.Alta, nameof(Usuario), usuario.Id,
-                                 $"{usuario.NombreUsuario} ({usuario.Rol})");
+                                 $"{usuario.NombreUsuario} ({string.Join(", ", usuario.Roles)})");
 
             return UsuarioMapper.ADto(usuario);
         }
@@ -64,14 +64,15 @@ namespace CooperadoraISFT94.Services
             if (cambiaPassword)
                 ValidarPassword(dto.NuevaPassword!);
 
-            // Evita que el único administrador se quite el acceso por error.
-            if (dto.Id == actorId && (!dto.Activo || usuario.Rol != dto.Rol))
+            // Evita que el único administrador se quite el acceso por error. Sí puede sumarse o quitarse otros roles.
+            var roles = dto.Roles ?? Array.Empty<Rol>();
+            if (dto.Id == actorId && (!dto.Activo || !roles.Contains(Rol.Administrador)))
                 throw new ReglaNegocioException(MensajeAutoModificacion);
 
             var anterior = UsuarioMapper.ADto(usuario);
 
             // Valida todos los datos antes de tocar al usuario: si alguno es inválido, queda sin cambios.
-            usuario.ActualizarDatos(dto.Nombre, dto.Apellido, dto.Activo, dto.Rol);
+            usuario.ActualizarDatos(dto.Nombre, dto.Apellido, dto.Activo, roles);
             if (cambiaPassword)
                 usuario.CambiarPasswordHash(PasswordHasher.Hashear(dto.NuevaPassword!));
 
@@ -82,7 +83,7 @@ namespace CooperadoraISFT94.Services
                 .Campo("Nombre", anterior.Nombre, nuevo.Nombre)
                 .Campo("Apellido", anterior.Apellido, nuevo.Apellido)
                 .Campo("Activo", anterior.Activo, nuevo.Activo)
-                .Campo("Rol", anterior.Rol, nuevo.Rol)
+                .Campo("Roles", anterior.RolesTexto, nuevo.RolesTexto)
                 .Oculto("Contraseña", cambiaPassword);
             _auditoria.Registrar(actorId, AccionAuditoria.Modificacion, nameof(Usuario), usuario.Id, cambios.ToString());
 

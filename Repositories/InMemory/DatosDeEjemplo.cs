@@ -104,8 +104,9 @@ namespace CooperadoraISFT94.Repositories.InMemory
                                              GrupoEgresoRepository.Instancia, auditoria);
             _usuarios = new UsuarioService(UsuarioRepository.Instancia, auditoria);
 
+            // Usuario con dos roles: atiende socios y cuotas, y también maneja la caja.
             _operador2Id = _usuarios.Registrar(
-                new UsuarioCrearDto("pablo.paz", "Pablo", "Paz", "operador123", true, Rol.Operador), _adminId).Id;
+                new UsuarioCrearDto("pablo.paz", "Pablo", "Paz", "operador123", true, [Rol.Operador, Rol.Contador]), _adminId).Id;
         }
 
         /// <param name="adminId">Usuarios que ya existen (los de prueba con contraseña conocida).</param>
@@ -240,7 +241,7 @@ namespace CooperadoraISFT94.Repositories.InMemory
 
                 // Un usuario que dejó la cooperadora.
                 var ex = _usuarios.Registrar(
-                    new UsuarioCrearDto("ex.tesorero", "Raúl", "Vera", "contador123", true, Rol.Contador), _adminId);
+                    new UsuarioCrearDto("ex.tesorero", "Raúl", "Vera", "contador123", true, [Rol.Contador]), _adminId);
                 _usuarios.CambiarEstado(ex.Id, false, _adminId);
             }
 

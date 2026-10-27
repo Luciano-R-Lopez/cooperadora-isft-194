@@ -7,10 +7,12 @@ namespace CooperadoraISFT94.Models
     public class Usuario : Persona
     {
         private string _passwordHash = string.Empty;
-        private Rol _rol;
+        private SortedSet<Rol> _roles;
 
         /// <param name="passwordHash">Hash PBKDF2: la contraseña en texto plano nunca llega al dominio.</param>
-        public Usuario(string nombreUsuario, string nombre, string apellido, string passwordHash, bool activo, Rol rol)
+        /// <param name="roles">Uno o más roles: un usuario puede ser, por ejemplo, operador y contador a la vez.</param>
+        public Usuario(string nombreUsuario, string nombre, string apellido, string passwordHash, bool activo,
+                       params IEnumerable<Rol> roles)
             : base(nombre, apellido)
         {
             nombreUsuario = (nombreUsuario ?? string.Empty).Trim();
@@ -21,7 +23,7 @@ namespace CooperadoraISFT94.Models
             NombreUsuario = nombreUsuario;
             CambiarPasswordHash(passwordHash);
             Activo = activo;
-            Rol = rol;
+            _roles = ValidarRoles(roles);
         }
 
         /// <summary>Identifica al usuario en el login; no se puede cambiar.</summary>
@@ -29,16 +31,8 @@ namespace CooperadoraISFT94.Models
 
         public string PasswordHash => _passwordHash;
 
-        public Rol Rol
-        {
-            get => _rol;
-            private set
-            {
-                if (!Enum.IsDefined(value))
-                    throw new ReglaNegocioException("El rol no es válido.");
-                _rol = value;
-            }
-        }
+        /// <summary>Roles del usuario, sin repetir y en el orden del enum (Administrador, Operador, Contador).</summary>
+        public IReadOnlyCollection<Rol> Roles => _roles;
 
         public bool Activo { get; private set; }
 
@@ -53,23 +47,32 @@ namespace CooperadoraISFT94.Models
 
         public void Desactivar() => Activo = false;
 
-        public bool TieneRol(Rol rol) => Rol == rol;
+        public bool TieneRol(Rol rol) => _roles.Contains(rol);
 
         /// <summary>
-        /// Cambia nombre, apellido, estado y rol juntos: primero valida todo y recién después modifica,
+        /// Cambia nombre, apellido, estado y roles juntos: primero valida todo y recién después modifica,
         /// así si algún dato es inválido el usuario queda sin cambios.
         /// </summary>
-        public void ActualizarDatos(string nombre, string apellido, bool activo, Rol rol)
+        public void ActualizarDatos(string nombre, string apellido, bool activo, params IEnumerable<Rol> roles)
         {
             var nombreValido = Validaciones.ExigirTexto(nombre, "nombre", LargoMaximoNombre);
             var apellidoValido = Validaciones.ExigirTexto(apellido, "apellido", LargoMaximoNombre);
-            if (!Enum.IsDefined(rol))
-                throw new ReglaNegocioException("El rol no es válido.");
+            var rolesValidos = ValidarRoles(roles);
 
             Nombre = nombreValido;
             Apellido = apellidoValido;
             Activo = activo;
-            Rol = rol;
+            _roles = rolesValidos;
+        }
+
+        private static SortedSet<Rol> ValidarRoles(IEnumerable<Rol>? roles)
+        {
+            var validos = new SortedSet<Rol>(roles ?? Enumerable.Empty<Rol>());
+            if (validos.Count == 0)
+                throw new ReglaNegocioException("El usuario tiene que tener al menos un rol.");
+            if (validos.Any(r => !Enum.IsDefined(r)))
+                throw new ReglaNegocioException("El rol no es válido.");
+            return validos;
         }
     }
 }

@@ -9,5 +9,5 @@ namespace CooperadoraISFT94.DTOs.Usuarios
         string Apellido,
         string Password,
         bool Activo,
-        Rol Rol);
+        IReadOnlyCollection<Rol> Roles);
 }
