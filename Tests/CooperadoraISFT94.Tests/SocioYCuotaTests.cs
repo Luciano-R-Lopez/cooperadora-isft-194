@@ -1,6 +1,6 @@
 using CooperadoraISFT94.Common.Exceptions;
-using CooperadoraISFT94.Enums;
-using CooperadoraISFT94.Models;
+using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Domain;
 
 namespace CooperadoraISFT94.Tests
 {

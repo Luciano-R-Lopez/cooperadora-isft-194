@@ -1,9 +1,9 @@
 using System.Globalization;
 using CooperadoraISFT94.Common;
-using CooperadoraISFT94.Repositories.InMemory;
-using CooperadoraISFT94.Views.Auth;
-using CooperadoraISFT94.Views.Common;
-using CooperadoraISFT94.Views.Shell;
+using CooperadoraISFT94.Datos;
+using CooperadoraISFT94.Forms.Auth;
+using CooperadoraISFT94.Forms.Utils;
+using CooperadoraISFT94.Forms.Shell;
 
 namespace CooperadoraISFT94
 {

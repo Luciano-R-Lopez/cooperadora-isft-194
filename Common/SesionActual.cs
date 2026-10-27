@@ -1,5 +1,5 @@
-using CooperadoraISFT94.DTOs.Usuarios;
-using CooperadoraISFT94.Enums;
+using CooperadoraISFT94.Dto;
+using CooperadoraISFT94.Common.Enums;
 
 namespace CooperadoraISFT94.Common
 {

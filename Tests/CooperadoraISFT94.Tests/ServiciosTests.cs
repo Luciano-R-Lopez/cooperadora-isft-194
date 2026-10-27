@@ -1,18 +1,11 @@
 using System.Globalization;
 using CooperadoraISFT94.Common;
 using CooperadoraISFT94.Common.Exceptions;
-using CooperadoraISFT94.DTOs.Auditorias;
-using CooperadoraISFT94.DTOs.Auth;
-using CooperadoraISFT94.DTOs.Cajas;
-using CooperadoraISFT94.DTOs.Egresos;
-using CooperadoraISFT94.DTOs.Ingresos;
-using CooperadoraISFT94.DTOs.Movimientos;
-using CooperadoraISFT94.DTOs.Socios;
-using CooperadoraISFT94.DTOs.Usuarios;
-using CooperadoraISFT94.Enums;
-using CooperadoraISFT94.Models;
-using CooperadoraISFT94.Views.Common;
-using CooperadoraISFT94.Views.Shell;
+using CooperadoraISFT94.Dto;
+using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Domain;
+using CooperadoraISFT94.Forms.Utils;
+using CooperadoraISFT94.Forms.Shell;
 
 namespace CooperadoraISFT94.Tests
 {
@@ -70,10 +63,10 @@ namespace CooperadoraISFT94.Tests
             c.SociosServicio.CambiarEstado(socio.Id, false, c.Operador.Id);
 
             Assert.Throws<ReglaNegocioException>(() =>
-                c.CuotasServicio.Generar(new DTOs.Cuotas.CuotaCrearDto(socio.Id, 5000m, 2026), c.Operador.Id));
+                c.CuotasServicio.Generar(new CuotaCrearDto(socio.Id, 5000m, 2026), c.Operador.Id));
 
             c.SociosServicio.CambiarEstado(socio.Id, true, c.Operador.Id);
-            c.CuotasServicio.Generar(new DTOs.Cuotas.CuotaCrearDto(socio.Id, 5000m, 2026), c.Operador.Id);
+            c.CuotasServicio.Generar(new CuotaCrearDto(socio.Id, 5000m, 2026), c.Operador.Id);
             Assert.Single(c.Cuotas.ObtenerPorSocio(socio));
         }
     }
@@ -406,7 +399,7 @@ namespace CooperadoraISFT94.Tests
             c.Cuota(zapata, 5000m, 2026);
             c.Cuota(medio, 5000m, 2026);
 
-            var deudores = c.CuotasServicio.ObtenerDeudores(new DTOs.Cuotas.DeudoresFiltroDto(null, null, true));
+            var deudores = c.CuotasServicio.ObtenerDeudores(new DeudoresFiltroDto(null, null, true));
 
             // Mena primero; después la familia Zapata: el responsable y luego su socio a cargo (Alba).
             Assert.Equal(new[] { "Mena", "Zapata", "Alba" }, deudores.Select(d => d.Apellido));
@@ -415,8 +408,8 @@ namespace CooperadoraISFT94.Tests
             Assert.Equal(9500m, alba.Total);
             Assert.Contains("Zapata", alba.Paga);
 
-            Assert.Single(c.CuotasServicio.ObtenerDeudores(new DTOs.Cuotas.DeudoresFiltroDto(2025, null, true)));
-            Assert.Equal(2, c.CuotasServicio.ObtenerDeudores(new DTOs.Cuotas.DeudoresFiltroDto(null, "zapata", true)).Count);
+            Assert.Single(c.CuotasServicio.ObtenerDeudores(new DeudoresFiltroDto(2025, null, true)));
+            Assert.Equal(2, c.CuotasServicio.ObtenerDeudores(new DeudoresFiltroDto(null, "zapata", true)).Count);
         }
 
         [Fact]
@@ -427,8 +420,8 @@ namespace CooperadoraISFT94.Tests
             c.Cuota(socio);
             socio.DarDeBaja(tieneSociosACargo: false);
 
-            Assert.Single(c.CuotasServicio.ObtenerDeudores(new DTOs.Cuotas.DeudoresFiltroDto(null, null, true)));
-            Assert.Empty(c.CuotasServicio.ObtenerDeudores(new DTOs.Cuotas.DeudoresFiltroDto(null, null, false)));
+            Assert.Single(c.CuotasServicio.ObtenerDeudores(new DeudoresFiltroDto(null, null, true)));
+            Assert.Empty(c.CuotasServicio.ObtenerDeudores(new DeudoresFiltroDto(null, null, false)));
         }
     }
 

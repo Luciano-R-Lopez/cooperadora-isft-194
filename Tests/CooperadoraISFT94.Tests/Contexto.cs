@@ -1,9 +1,9 @@
 using CooperadoraISFT94.Common;
-using CooperadoraISFT94.DTOs.Cajas;
-using CooperadoraISFT94.Enums;
-using CooperadoraISFT94.Models;
-using CooperadoraISFT94.Repositories.InMemory;
-using CooperadoraISFT94.Services;
+using CooperadoraISFT94.Dto;
+using CooperadoraISFT94.Common.Enums;
+using CooperadoraISFT94.Domain;
+using CooperadoraISFT94.Repository.Memoria;
+using CooperadoraISFT94.Service;
 
 namespace CooperadoraISFT94.Tests
 {
