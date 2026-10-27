@@ -6,7 +6,7 @@ using CooperadoraISFT94.Services.Interfaces;
 
 namespace CooperadoraISFT94.Controllers
 {
-    /// <summary>Opciones de los desplegables (medios de pago, motivos de egreso) y su mantenimiento por el administrador.</summary>
+    /// <summary>Opciones de los desplegables (medios de pago, motivos y grupos de egreso) y su mantenimiento por el administrador.</summary>
     public class CatalogoController : BaseController
     {
         private readonly ICatalogoService _catalogos;
@@ -28,6 +28,13 @@ namespace CooperadoraISFT94.Controllers
         {
             ExigirRol(Rol.Contador);
             return _catalogos.ObtenerMotivosEgreso();
+        }
+
+        /// <param name="incluirInactivos">True para filtrar movimientos ya registrados.</param>
+        public IReadOnlyList<GrupoEgresoDto> ObtenerGruposEgreso(bool incluirInactivos = false)
+        {
+            ExigirRol(Rol.Contador);
+            return _catalogos.ObtenerGruposEgreso(incluirInactivos);
         }
 
         public IReadOnlyList<ItemCatalogoDto> ObtenerItems(TipoCatalogo tipo)

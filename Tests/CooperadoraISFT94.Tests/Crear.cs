@@ -18,6 +18,6 @@ namespace CooperadoraISFT94.Tests
             new(Usuario(), DateTime.Now, monto, medio, categoria);
 
         public static Egreso Egreso(decimal monto, MedioPago medio) =>
-            new(Usuario(Rol.Contador), DateTime.Now, monto, medio, new MotivoEgreso("Materiales"));
+            new(Usuario(Rol.Contador), DateTime.Now, monto, medio, new MotivoEgreso("Materiales"), new GrupoEgreso("Estudiantes"));
     }
 }

@@ -31,7 +31,8 @@ usando los servicios reales (así todo cumple las reglas y queda en la auditorí
 - **38 socios**: 7 responsables con 1 a 3 socios a cargo, 4 que se inscriben a mitad de 2025 y 3 dados de baja.
 - **Cuotas 2024, 2025 y 2026** ($ 4.000, $ 4.500 y $ 5.000), muchas pagadas (varias por el responsable) y algunas
   pendientes para el listado de morosos.
-- **Una caja por mes** con cobros, donaciones, subsidios (abril, agosto y noviembre), servicios y otros gastos;
+- **Una caja por mes** con cobros, donaciones, subsidios (abril, agosto y noviembre), servicios y otros gastos
+  (repartidos entre los tres grupos de egreso);
   algunos cierres con diferencia. La caja de hoy queda abierta con movimientos y una donación anulada.
 - Cambios de catálogos (se agregan "Mercado Pago" y "Limpieza", se desactiva "Cheque"), un usuario desactivado
   y la corrección de datos de un socio.
@@ -84,8 +85,12 @@ dotnet test CooperadoraISFT94.slnx
 - El resumen no cuenta los movimientos anulados.
 
 ### Administración
-- **Catálogos administrables:** agregar, renombrar y desactivar medios de pago y motivos de egreso.
+- **Catálogos administrables:** agregar, renombrar y desactivar medios de pago, motivos de egreso
+  y grupos de egreso.
   Los desactivados no se ofrecen para movimientos nuevos; los ya registrados no cambian.
+- **Grupo de egreso** (Estudiantes, Administración, Otros, editables por el administrador): cada egreso se carga
+  con su grupo, independiente del motivo. Caja y movimientos tiene columna y filtro por grupo, y el resumen impreso
+  de caja muestra el total de egresos de cada grupo.
 - **Auditoría con detalle** de qué cambió (por ejemplo "Rol: Operador → Contador") y **filtros** por fecha,
   acción y texto.
 
@@ -108,9 +113,9 @@ dotnet test CooperadoraISFT94.slnx
 - Campo de fecha propio con calendario desplegable, y avisos propios en lugar de los de Windows.
 
 ### Tests
-- Proyecto `Tests/CooperadoraISFT94.Tests` (xUnit) con **59 tests**: reglas del dominio (caja, movimientos,
+- Proyecto `Tests/CooperadoraISFT94.Tests` (xUnit) con **61 tests**: reglas del dominio (caja, movimientos,
   socios, cuotas, contraseñas) y servicios (DNI repetido, generación de cuotas, pagos, pago del responsable,
-  anulaciones, resumen de caja, bloqueo de login, catálogos y filtros de auditoría).
+  anulaciones, resumen de caja, bloqueo de login, catálogos, grupos de egreso y filtros de auditoría).
 - Los servicios reciben sus repositorios y un reloj por constructor, así cada test usa datos propios y una hora fija.
 
 ## Pendiente

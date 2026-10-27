@@ -32,6 +32,13 @@ namespace CooperadoraISFT94.Repositories.InMemory
                 foreach (var nombre in new[] { "Materiales", "Servicios", "Mantenimiento", "Eventos", "Otro" })
                     motivos.Agregar(new MotivoEgreso(nombre));
             }
+
+            var grupos = GrupoEgresoRepository.Instancia;
+            if (grupos.ObtenerTodos().Count == 0)
+            {
+                foreach (var nombre in new[] { "Estudiantes", "Administración", "Otros" })
+                    grupos.Agregar(new GrupoEgreso(nombre));
+            }
         }
 
         private static void CargarUsuarios()

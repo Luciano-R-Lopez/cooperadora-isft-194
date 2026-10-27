@@ -8,5 +8,7 @@ namespace CooperadoraISFT94.Services
         public static MedioPagoDto ADto(MedioPago m) => new(m.Id, m.Nombre);
 
         public static MotivoEgresoDto ADto(MotivoEgreso m) => new(m.Id, m.Nombre);
+
+        public static GrupoEgresoDto ADto(GrupoEgreso g) => new(g.Id, g.Nombre);
     }
 }

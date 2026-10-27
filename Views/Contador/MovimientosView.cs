@@ -16,6 +16,7 @@ namespace CooperadoraISFT94.Views.Contador
         private readonly ComboBox _cmbCaja = new();
         private readonly ComboBox _cmbTipo = new();
         private readonly ComboBox _cmbMedio = new();
+        private readonly ComboBox _cmbGrupo = new();
         private readonly TextBox _txtBuscar = Ui.Campo(740, 18, 200);
         private readonly DataGridView _grilla = Ui.CrearGrilla();
         private readonly Button _btnAnular = new();
@@ -59,11 +60,17 @@ namespace CooperadoraISFT94.Views.Contador
             _cmbMedio.DropDownStyle = ComboBoxStyle.DropDownList;
             _cmbMedio.DisplayMember = nameof(Opcion<int?>.Texto);
 
-            _txtBuscar.Location = new Point(595, 18);
+            _cmbGrupo.Location = new Point(595, 18);
+            _cmbGrupo.Size = new Size(150, 28);
+            _cmbGrupo.DropDownStyle = ComboBoxStyle.DropDownList;
+            _cmbGrupo.DisplayMember = nameof(Opcion<int?>.Texto);
+
+            _txtBuscar.Location = new Point(760, 18);
 
             _cmbCaja.SelectedIndexChanged += (_, _) => Recargar();
             _cmbTipo.SelectedIndexChanged += (_, _) => Recargar();
             _cmbMedio.SelectedIndexChanged += (_, _) => Recargar();
+            _cmbGrupo.SelectedIndexChanged += (_, _) => Recargar();
             _txtBuscar.TextChanged += (_, _) => Recargar();
 
             barra.Controls.AddRange(new Control[]
@@ -71,12 +78,14 @@ namespace CooperadoraISFT94.Views.Contador
                 Ui.Etiqueta("Caja", 10, 0), _cmbCaja,
                 Ui.Etiqueta("Tipo", 305, 0), _cmbTipo,
                 Ui.Etiqueta("Medio de pago", 440, 0), _cmbMedio,
-                Ui.Etiqueta("Buscar detalle o usuario", 595, 0), _txtBuscar
+                Ui.Etiqueta("Grupo de egreso", 595, 0), _cmbGrupo,
+                Ui.Etiqueta("Buscar detalle o usuario", 760, 0), _txtBuscar
             });
 
             Ui.AgregarColumna(_grilla, "Fecha y hora", nameof(MovimientoDto.Fecha), "dd/MM/yyyy HH:mm");
             Ui.AgregarColumna(_grilla, "Tipo", nameof(MovimientoDto.Tipo));
             Ui.AgregarColumna(_grilla, "Categoría / motivo", nameof(MovimientoDto.Clasificacion));
+            Ui.AgregarColumna(_grilla, "Grupo", nameof(MovimientoDto.Grupo));
             Ui.AgregarColumna(_grilla, "Detalle", nameof(MovimientoDto.Detalle));
             Ui.AgregarColumna(_grilla, "Medio de pago", nameof(MovimientoDto.MedioPago));
             Ui.AgregarColumna(_grilla, "Monto", nameof(MovimientoDto.MontoConSigno), "C2");
@@ -109,6 +118,7 @@ namespace CooperadoraISFT94.Views.Contador
         {
             var seleccionada = (_cmbCaja.SelectedItem as CajaDto)?.Id;
             var medioSeleccionado = (_cmbMedio.SelectedItem as Opcion<int?>)?.Valor;
+            var grupoSeleccionado = (_cmbGrupo.SelectedItem as Opcion<int?>)?.Valor;
 
             _cargando = true;
             try
@@ -117,6 +127,7 @@ namespace CooperadoraISFT94.Views.Contador
                 SeleccionarCaja(seleccionada);
 
                 CargarMedios(medioSeleccionado);
+                CargarGrupos(grupoSeleccionado);
             }
             catch (NegocioException ex)
             {
@@ -139,6 +150,16 @@ namespace CooperadoraISFT94.Views.Contador
 
             _cmbMedio.DataSource = opciones;
             _cmbMedio.SelectedIndex = Math.Max(0, opciones.FindIndex(o => o.Valor == medioId));
+        }
+
+        /// <summary>Carga los grupos de egreso (más "Todos") y mantiene el elegido si sigue existiendo.</summary>
+        private void CargarGrupos(int? grupoId)
+        {
+            var opciones = new List<Opcion<int?>> { new("Todos", null) };
+            opciones.AddRange(_catalogos.ObtenerGruposEgreso(incluirInactivos: true).Select(g => new Opcion<int?>(g.Nombre, g.Id)));
+
+            _cmbGrupo.DataSource = opciones;
+            _cmbGrupo.SelectedIndex = Math.Max(0, opciones.FindIndex(o => o.Valor == grupoId));
         }
 
         /// <summary>Mantiene la caja elegida; si no había, prefiere la abierta (están ordenadas de la más reciente).</summary>
@@ -170,10 +191,12 @@ namespace CooperadoraISFT94.Views.Contador
 
             var tipo = ((Opcion<TipoMovimiento?>)_cmbTipo.SelectedItem!).Valor;
             var medioId = (_cmbMedio.SelectedItem as Opcion<int?>)?.Valor;
+            var grupoId = (_cmbGrupo.SelectedItem as Opcion<int?>)?.Valor;
 
             try
             {
-                _grilla.DataSource = _controller.Obtener(new MovimientoFiltroDto(caja.Id, tipo, medioId, _txtBuscar.Text)).ToList();
+                _grilla.DataSource = _controller.Obtener(new MovimientoFiltroDto(caja.Id, tipo, medioId, _txtBuscar.Text, grupoId))
+                                                .ToList();
             }
             catch (NegocioException ex)
             {

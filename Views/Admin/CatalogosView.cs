@@ -7,7 +7,7 @@ using CooperadoraISFT94.Views.Common;
 namespace CooperadoraISFT94.Views.Admin
 {
     /// <summary>
-    /// Mantenimiento de los catálogos (medios de pago y motivos de egreso): agregar, renombrar y
+    /// Mantenimiento de los catálogos (medios de pago, motivos y grupos de egreso): agregar, renombrar y
     /// desactivar. Un ítem desactivado no se ofrece para movimientos nuevos; los registrados no cambian.
     /// </summary>
     public class CatalogosView : UserControl, IRefrescable
@@ -30,7 +30,12 @@ namespace CooperadoraISFT94.Views.Admin
 
         private TipoCatalogo Tipo => ((Opcion<TipoCatalogo>)_cmbCatalogo.SelectedItem!).Valor;
 
-        private string NombreCatalogo => Tipo == TipoCatalogo.MedioPago ? "medio de pago" : "motivo de egreso";
+        private string NombreCatalogo => Tipo switch
+        {
+            TipoCatalogo.MedioPago => "medio de pago",
+            TipoCatalogo.MotivoEgreso => "motivo de egreso",
+            _ => "grupo de egreso"
+        };
 
         private void ConstruirInterfaz()
         {
@@ -39,7 +44,8 @@ namespace CooperadoraISFT94.Views.Admin
             Ui.Llenar(_cmbCatalogo, new List<Opcion<TipoCatalogo>>
             {
                 new("Medios de pago", TipoCatalogo.MedioPago),
-                new("Motivos de egreso", TipoCatalogo.MotivoEgreso)
+                new("Motivos de egreso", TipoCatalogo.MotivoEgreso),
+                new("Grupos de egreso", TipoCatalogo.GrupoEgreso)
             });
             _cmbCatalogo.SelectedIndexChanged += (_, _) => Refrescar();
 

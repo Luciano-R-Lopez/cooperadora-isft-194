@@ -5,13 +5,18 @@ namespace CooperadoraISFT94.Models
 {
     public class Egreso : Movimiento
     {
-        public Egreso(Usuario usuario, DateTime fecha, decimal monto, MedioPago medioPago, MotivoEgreso motivo)
+        public Egreso(Usuario usuario, DateTime fecha, decimal monto, MedioPago medioPago, MotivoEgreso motivo,
+                      GrupoEgreso grupo)
             : base(usuario, fecha, monto, medioPago)
         {
             Motivo = motivo ?? throw new ReglaNegocioException("El motivo del egreso es obligatorio.");
+            Grupo = grupo ?? throw new ReglaNegocioException("El grupo del egreso es obligatorio.");
         }
 
         public MotivoEgreso Motivo { get; }
+
+        /// <summary>A quién corresponde el gasto. Se elige aparte del motivo: un mismo motivo puede ser de distintos grupos.</summary>
+        public GrupoEgreso Grupo { get; }
 
         public override TipoMovimiento Tipo => TipoMovimiento.Egreso;
 

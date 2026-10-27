@@ -54,7 +54,9 @@ namespace CooperadoraISFT94.Services
             _cajas.Actualizar(caja);
 
             _auditoria.Registrar(movimiento.Usuario.Id, AccionAuditoria.Alta, movimiento.GetType().Name, movimiento.Id,
-                                 $"{movimiento.Clasificacion} - {movimiento.MedioPago.Nombre} - {movimiento.Monto:C2}");
+                                 movimiento is Egreso egreso
+                                     ? $"{egreso.Clasificacion} - {egreso.Grupo.Nombre} - {egreso.MedioPago.Nombre} - {egreso.Monto:C2}"
+                                     : $"{movimiento.Clasificacion} - {movimiento.MedioPago.Nombre} - {movimiento.Monto:C2}");
         }
 
         public void Anular(Movimiento movimiento, Usuario usuario, string motivo)

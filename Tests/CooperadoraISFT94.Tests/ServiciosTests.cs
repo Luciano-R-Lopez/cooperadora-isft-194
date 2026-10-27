@@ -4,6 +4,7 @@ using CooperadoraISFT94.DTOs.Auth;
 using CooperadoraISFT94.DTOs.Cajas;
 using CooperadoraISFT94.DTOs.Egresos;
 using CooperadoraISFT94.DTOs.Ingresos;
+using CooperadoraISFT94.DTOs.Movimientos;
 using CooperadoraISFT94.DTOs.Socios;
 using CooperadoraISFT94.DTOs.Usuarios;
 using CooperadoraISFT94.Enums;
@@ -207,7 +208,7 @@ namespace CooperadoraISFT94.Tests
             var c = new Contexto();
             c.AbrirCaja();
             var ingreso = c.Ingresos.Registrar(new IngresoCrearDto(100m, CategoriaIngreso.Donacion, c.Efectivo.Id), c.Operador.Id);
-            c.Egresos.Registrar(new EgresoCrearDto(80m, c.Materiales.Id, c.Efectivo.Id), c.Contador.Id);
+            c.Egresos.Registrar(new EgresoCrearDto(80m, c.Materiales.Id, c.Estudiantes.Id, c.Efectivo.Id), c.Contador.Id);
 
             Assert.Throws<ReglaNegocioException>(() => c.MovimientosServicio.Anular(ingreso.Id, "Error", c.Contador.Id));
             Assert.Equal(20m, c.Cajas.ObtenerActiva()!.MontoTotal);
@@ -295,7 +296,7 @@ namespace CooperadoraISFT94.Tests
             Assert.DoesNotContain(c.Catalogos.ObtenerMediosPago(), m => m.Id == c.Transferencia.Id);
             Assert.Contains(c.Catalogos.ObtenerMediosPago(incluirInactivos: true), m => m.Id == c.Transferencia.Id);
             Assert.Throws<ReglaNegocioException>(() =>
-                c.Egresos.Registrar(new EgresoCrearDto(10m, c.Materiales.Id, c.Transferencia.Id), c.Contador.Id));
+                c.Egresos.Registrar(new EgresoCrearDto(10m, c.Materiales.Id, c.Estudiantes.Id, c.Transferencia.Id), c.Contador.Id));
         }
 
         [Fact]
@@ -423,6 +424,45 @@ namespace CooperadoraISFT94.Tests
 
             Assert.Single(c.CuotasServicio.ObtenerDeudores(new DTOs.Cuotas.DeudoresFiltroDto(null, null, true)));
             Assert.Empty(c.CuotasServicio.ObtenerDeudores(new DTOs.Cuotas.DeudoresFiltroDto(null, null, false)));
+        }
+    }
+
+    public class GrupoEgresoTests
+    {
+        [Fact]
+        public void Un_mismo_motivo_puede_ser_de_distintos_grupos_y_se_filtra_por_grupo()
+        {
+            var c = new Contexto();
+            c.AbrirCaja();
+            c.Ingresos.Registrar(new IngresoCrearDto(1000m, CategoriaIngreso.Donacion, c.Efectivo.Id), c.Operador.Id);
+            c.Egresos.Registrar(new EgresoCrearDto(100m, c.Materiales.Id, c.Estudiantes.Id, c.Efectivo.Id), c.Contador.Id);
+            c.Egresos.Registrar(new EgresoCrearDto(200m, c.Materiales.Id, c.Administracion.Id, c.Efectivo.Id), c.Contador.Id);
+
+            var caja = c.Cajas.ObtenerActiva()!.Id;
+            var deEstudiantes = c.MovimientosServicio.Obtener(new MovimientoFiltroDto(caja, null, null, null, c.Estudiantes.Id));
+
+            var egreso = Assert.Single(deEstudiantes);
+            Assert.Equal(100m, egreso.Monto);
+            Assert.Equal("Estudiantes", egreso.Grupo);
+            Assert.Equal("Materiales", egreso.Clasificacion);
+            Assert.Contains(c.MovimientosServicio.Obtener(new MovimientoFiltroDto(caja, TipoMovimiento.Ingreso, null, null)),
+                            m => m.Grupo == "-");
+        }
+
+        [Fact]
+        public void No_se_puede_usar_un_grupo_desactivado_y_el_administrador_lo_mantiene_como_los_demas_catalogos()
+        {
+            var c = new Contexto();
+            c.AbrirCaja(1000m);
+
+            var otros = c.Catalogos.Agregar(TipoCatalogo.GrupoEgreso, "Otros", 1);
+            Assert.Throws<ReglaNegocioException>(() => c.Catalogos.Agregar(TipoCatalogo.GrupoEgreso, "estudiantes", 1));
+            c.Catalogos.CambiarEstado(TipoCatalogo.GrupoEgreso, otros.Id, false, 1);
+
+            Assert.DoesNotContain(c.Catalogos.ObtenerGruposEgreso(), g => g.Id == otros.Id);
+            Assert.Contains(c.Catalogos.ObtenerGruposEgreso(incluirInactivos: true), g => g.Id == otros.Id);
+            Assert.Throws<ReglaNegocioException>(() =>
+                c.Egresos.Registrar(new EgresoCrearDto(10m, c.Materiales.Id, otros.Id, c.Efectivo.Id), c.Contador.Id));
         }
     }
 }

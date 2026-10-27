@@ -15,12 +15,14 @@ namespace CooperadoraISFT94.Services
         private static readonly Lazy<MovimientoService> _instancia = new(() =>
             new MovimientoService(MovimientoRepository.Instancia, DetalleIngresoCuotaRepository.Instancia,
                                   MedioPagoRepository.Instancia, CajaRepository.Instancia, UsuarioRepository.Instancia,
-                                  CuotaRepository.Instancia, MovimientoRegistrador.Instancia, AuditoriaService.Instancia));
+                                  CuotaRepository.Instancia, GrupoEgresoRepository.Instancia, MovimientoRegistrador.Instancia,
+                                  AuditoriaService.Instancia));
         public static MovimientoService Instancia => _instancia.Value;
 
         private readonly IMovimientoRepository _movimientos;
         private readonly IDetalleIngresoCuotaRepository _detalles;
         private readonly IMedioPagoRepository _medios;
+        private readonly IGrupoEgresoRepository _grupos;
         private readonly ICajaRepository _cajas;
         private readonly IUsuarioRepository _usuarios;
         private readonly ICuotaRepository _cuotas;
@@ -29,7 +31,8 @@ namespace CooperadoraISFT94.Services
 
         internal MovimientoService(IMovimientoRepository movimientos, IDetalleIngresoCuotaRepository detalles,
                                    IMedioPagoRepository medios, ICajaRepository cajas, IUsuarioRepository usuarios,
-                                   ICuotaRepository cuotas, IMovimientoRegistrador registrador, IAuditoriaService auditoria)
+                                   ICuotaRepository cuotas, IGrupoEgresoRepository grupos, IMovimientoRegistrador registrador,
+                                   IAuditoriaService auditoria)
         {
             _movimientos = movimientos;
             _detalles = detalles;
@@ -37,6 +40,7 @@ namespace CooperadoraISFT94.Services
             _cajas = cajas;
             _usuarios = usuarios;
             _cuotas = cuotas;
+            _grupos = grupos;
             _registrador = registrador;
             _auditoria = auditoria;
         }
@@ -50,6 +54,8 @@ namespace CooperadoraISFT94.Services
                 throw new ReglaNegocioException("El tipo de movimiento no es válido.");
             if (filtro.MedioPagoId is int medioId)
                 _medios.ObtenerExistente(medioId);
+            if (filtro.GrupoEgresoId is int grupoId)
+                _grupos.ObtenerExistente(grupoId);
 
             IEnumerable<Movimiento> movimientos = _movimientos.ObtenerPorCaja(caja);
 
@@ -58,6 +64,9 @@ namespace CooperadoraISFT94.Services
 
             if (filtro.MedioPagoId is int medioPagoId)
                 movimientos = movimientos.Where(m => m.MedioPago.Id == medioPagoId);
+
+            if (filtro.GrupoEgresoId is int grupoEgresoId)
+                movimientos = movimientos.Where(m => m is Egreso e && e.Grupo.Id == grupoEgresoId);
 
             // Cuotas que pagó cada ingreso, indexadas por id de movimiento (los egresos simplemente no tienen).
             var cuotasPorMovimiento = _detalles.ObtenerTodos().ToLookup(d => d.Ingreso.Id);
@@ -70,6 +79,7 @@ namespace CooperadoraISFT94.Services
                 resultado = resultado.Where(m =>
                     m.Detalle.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
                     m.Clasificacion.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                    m.Grupo.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
                     m.Usuario.Contains(texto, StringComparison.OrdinalIgnoreCase));
             }
 
@@ -97,8 +107,8 @@ namespace CooperadoraISFT94.Services
         }
 
         private static MovimientoDto ADto(Movimiento m, IEnumerable<DetalleIngresoCuota> detalles) =>
-            new(m.Id, m.Tipo, m.Fecha, m.Clasificacion, DescribirDetalle(detalles), m.MedioPago.Nombre, m.Monto,
-                m.Usuario.NombreCompleto, m.Anulado, m.MotivoAnulacion);
+            new(m.Id, m.Tipo, m.Fecha, m.Clasificacion, (m as Egreso)?.Grupo.Nombre ?? SinDetalle, DescribirDetalle(detalles),
+                m.MedioPago.Nombre, m.Monto, m.Usuario.NombreCompleto, m.Anulado, m.MotivoAnulacion);
 
         private static string DescribirDetalle(IEnumerable<DetalleIngresoCuota> detalles)
         {

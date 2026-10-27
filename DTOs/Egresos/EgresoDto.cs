@@ -5,5 +5,6 @@ namespace CooperadoraISFT94.DTOs.Egresos
         DateTime Fecha,
         decimal Monto,
         string Motivo,
+        string Grupo,
         string MedioPago);
 }

@@ -4,6 +4,7 @@ namespace CooperadoraISFT94.Enums
     public enum TipoCatalogo
     {
         MedioPago,
-        MotivoEgreso
+        MotivoEgreso,
+        GrupoEgreso
     }
 }

@@ -11,17 +11,21 @@ namespace CooperadoraISFT94.Services
     public sealed class CatalogoService : ICatalogoService
     {
         private static readonly Lazy<CatalogoService> _instancia = new(() =>
-            new CatalogoService(MedioPagoRepository.Instancia, MotivoEgresoRepository.Instancia, AuditoriaService.Instancia));
+            new CatalogoService(MedioPagoRepository.Instancia, MotivoEgresoRepository.Instancia,
+                                GrupoEgresoRepository.Instancia, AuditoriaService.Instancia));
         public static CatalogoService Instancia => _instancia.Value;
 
         private readonly IMedioPagoRepository _medios;
         private readonly IMotivoEgresoRepository _motivos;
+        private readonly IGrupoEgresoRepository _grupos;
         private readonly IAuditoriaService _auditoria;
 
-        internal CatalogoService(IMedioPagoRepository medios, IMotivoEgresoRepository motivos, IAuditoriaService auditoria)
+        internal CatalogoService(IMedioPagoRepository medios, IMotivoEgresoRepository motivos,
+                                 IGrupoEgresoRepository grupos, IAuditoriaService auditoria)
         {
             _medios = medios;
             _motivos = motivos;
+            _grupos = grupos;
             _auditoria = auditoria;
         }
 
@@ -39,6 +43,13 @@ namespace CooperadoraISFT94.Services
                     .Select(CatalogoMapper.ADto)
                     .ToList();
 
+        public IReadOnlyList<GrupoEgresoDto> ObtenerGruposEgreso(bool incluirInactivos = false) =>
+            _grupos.ObtenerTodos()
+                   .Where(g => incluirInactivos || g.Activo)
+                   .OrderBy(g => g.Nombre)
+                   .Select(CatalogoMapper.ADto)
+                   .ToList();
+
         public IReadOnlyList<ItemCatalogoDto> ObtenerItems(TipoCatalogo tipo) =>
             Items(tipo).OrderBy(i => i.Nombre).Select(i => ADto(tipo, i)).ToList();
 
@@ -48,13 +59,18 @@ namespace CooperadoraISFT94.Services
             {
                 TipoCatalogo.MedioPago => new MedioPago(nombre),
                 TipoCatalogo.MotivoEgreso => new MotivoEgreso(nombre),
+                TipoCatalogo.GrupoEgreso => new GrupoEgreso(nombre),
                 _ => throw new ReglaNegocioException("El catálogo no es válido.")
             };
             ExigirNombreLibre(tipo, item.Nombre, itemId: null);
 
-            item = tipo == TipoCatalogo.MedioPago
-                ? _medios.Agregar((MedioPago)item)
-                : _motivos.Agregar((MotivoEgreso)item);
+            item = item switch
+            {
+                MedioPago medio => _medios.Agregar(medio),
+                MotivoEgreso motivo => _motivos.Agregar(motivo),
+                GrupoEgreso grupo => _grupos.Agregar(grupo),
+                _ => throw new ReglaNegocioException("El catálogo no es válido.")
+            };
 
             _auditoria.Registrar(usuarioId, AccionAuditoria.Alta, item.GetType().Name, item.Id, item.Nombre);
             return ADto(tipo, item);
@@ -76,7 +92,7 @@ namespace CooperadoraISFT94.Services
                 throw;
             }
 
-            Guardar(tipo, item);
+            Guardar(item);
             _auditoria.Registrar(usuarioId, AccionAuditoria.Modificacion, item.GetType().Name, item.Id,
                                  new DescripcionCambios().Campo("Nombre", anterior, item.Nombre).ToString());
             return ADto(tipo, item);
@@ -91,7 +107,7 @@ namespace CooperadoraISFT94.Services
             else
                 item.Desactivar();
 
-            Guardar(tipo, item);
+            Guardar(item);
             _auditoria.Registrar(usuarioId, activo ? AccionAuditoria.Modificacion : AccionAuditoria.Baja,
                                  item.GetType().Name, item.Id, activo ? "Activado" : "Desactivado");
             return ADto(tipo, item);
@@ -102,6 +118,7 @@ namespace CooperadoraISFT94.Services
             {
                 TipoCatalogo.MedioPago => _medios.ObtenerTodos(),
                 TipoCatalogo.MotivoEgreso => _motivos.ObtenerTodos(),
+                TipoCatalogo.GrupoEgreso => _grupos.ObtenerTodos(),
                 _ => throw new ReglaNegocioException("El catálogo no es válido.")
             };
 
@@ -110,15 +127,18 @@ namespace CooperadoraISFT94.Services
             {
                 TipoCatalogo.MedioPago => _medios.ObtenerExistente(id),
                 TipoCatalogo.MotivoEgreso => _motivos.ObtenerExistente(id),
+                TipoCatalogo.GrupoEgreso => _grupos.ObtenerExistente(id),
                 _ => throw new ReglaNegocioException("El catálogo no es válido.")
             };
 
-        private void Guardar(TipoCatalogo tipo, ItemCatalogo item)
+        private void Guardar(ItemCatalogo item)
         {
-            if (tipo == TipoCatalogo.MedioPago)
-                _medios.Actualizar((MedioPago)item);
-            else
-                _motivos.Actualizar((MotivoEgreso)item);
+            switch (item)
+            {
+                case MedioPago medio: _medios.Actualizar(medio); break;
+                case MotivoEgreso motivo: _motivos.Actualizar(motivo); break;
+                case GrupoEgreso grupo: _grupos.Actualizar(grupo); break;
+            }
         }
 
         /// <summary>No puede haber dos ítems con el mismo nombre en un catálogo (sin distinguir mayúsculas).</summary>

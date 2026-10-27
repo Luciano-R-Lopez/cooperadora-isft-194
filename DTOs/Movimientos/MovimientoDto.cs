@@ -8,6 +8,7 @@ namespace CooperadoraISFT94.DTOs.Movimientos
         TipoMovimiento Tipo,
         DateTime Fecha,
         string Clasificacion,
+        string Grupo,
         string Detalle,
         string MedioPago,
         decimal Monto,

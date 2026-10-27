@@ -16,6 +16,7 @@ namespace CooperadoraISFT94.Views.Contador
         private readonly CajaEstadoLabel _estado = new();
         private readonly NumericUpDown _numMonto = new();
         private readonly ComboBox _cmbMotivo = new();
+        private readonly ComboBox _cmbGrupo = new();
         private readonly ComboBox _cmbMedio = new();
         private readonly Button _btnRegistrar = new();
 
@@ -41,19 +42,21 @@ namespace CooperadoraISFT94.Views.Contador
             _numMonto.ThousandsSeparator = true;
 
             ConfigurarDesplegable(_cmbMotivo, new Point(20, 85));
-            ConfigurarDesplegable(_cmbMedio, new Point(20, 140));
+            ConfigurarDesplegable(_cmbGrupo, new Point(20, 140));
+            ConfigurarDesplegable(_cmbMedio, new Point(20, 195));
 
             _btnRegistrar.Text = "Registrar egreso";
-            _btnRegistrar.Location = new Point(20, 195);
+            _btnRegistrar.Location = new Point(20, 250);
             _btnRegistrar.Size = new Size(380, 38);
             _btnRegistrar.Click += (_, _) => Registrar();
 
-            var formulario = new Panel { Size = new Size(420, 250) };
+            var formulario = new Panel { Size = new Size(420, 305) };
             formulario.Controls.AddRange(new Control[]
             {
                 Ui.Etiqueta("Monto", 20, 10), _numMonto,
                 Ui.Etiqueta("Motivo", 20, 65), _cmbMotivo,
-                Ui.Etiqueta("Medio de pago", 20, 120), _cmbMedio,
+                Ui.Etiqueta("Grupo", 20, 120), _cmbGrupo,
+                Ui.Etiqueta("Medio de pago", 20, 175), _cmbMedio,
                 _btnRegistrar
             });
 
@@ -95,6 +98,7 @@ namespace CooperadoraISFT94.Views.Contador
             try
             {
                 _cmbMotivo.DataSource = _catalogos.ObtenerMotivosEgreso().ToList();
+                _cmbGrupo.DataSource = _catalogos.ObtenerGruposEgreso().ToList();
                 _cmbMedio.DataSource = _catalogos.ObtenerMediosPago().ToList();
             }
             catch (NegocioException ex)
@@ -105,13 +109,14 @@ namespace CooperadoraISFT94.Views.Contador
 
         private void Registrar()
         {
-            if (_cmbMotivo.SelectedItem is not MotivoEgresoDto motivo || _cmbMedio.SelectedItem is not MedioPagoDto medio)
+            if (_cmbMotivo.SelectedItem is not MotivoEgresoDto motivo || _cmbGrupo.SelectedItem is not GrupoEgresoDto grupo ||
+                _cmbMedio.SelectedItem is not MedioPagoDto medio)
             {
-                Ui.Error("Elegí el motivo y el medio de pago.");
+                Ui.Error("Elegí el motivo, el grupo y el medio de pago.");
                 return;
             }
 
-            var dto = new EgresoCrearDto(_numMonto.Value, motivo.Id, medio.Id);
+            var dto = new EgresoCrearDto(_numMonto.Value, motivo.Id, grupo.Id, medio.Id);
 
             try
             {
@@ -131,6 +136,7 @@ namespace CooperadoraISFT94.Views.Contador
         {
             _numMonto.Value = 0;
             _cmbMotivo.SelectedIndex = 0;
+            _cmbGrupo.SelectedIndex = 0;
             _cmbMedio.SelectedIndex = 0;
             _numMonto.Focus();
         }

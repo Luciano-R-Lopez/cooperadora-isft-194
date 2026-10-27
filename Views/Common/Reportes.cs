@@ -2,6 +2,7 @@ using System.Drawing.Printing;
 using CooperadoraISFT94.DTOs.Cajas;
 using CooperadoraISFT94.DTOs.Cuotas;
 using CooperadoraISFT94.DTOs.Movimientos;
+using CooperadoraISFT94.Enums;
 
 namespace CooperadoraISFT94.Views.Common
 {
@@ -58,12 +59,19 @@ namespace CooperadoraISFT94.Views.Common
                 .Tabla(new[] { "Medio de pago", "Saldo" }, new[] { 3f, 2f },
                        resumen.TotalesPorMedio.Select(t => new[] { t.MedioPago, t.Monto.ToString("C2") }))
                 .Espacio()
+                .Subtitulo("Egresos por grupo")
+                .Tabla(new[] { "Grupo", "Egresos", "Total" }, new[] { 3f, 1f, 2f },
+                       movimientos.Where(m => m.Tipo == TipoMovimiento.Egreso && !m.Anulado)
+                                  .GroupBy(m => m.Grupo)
+                                  .OrderBy(g => g.Key)
+                                  .Select(g => new[] { g.Key, g.Count().ToString(), g.Sum(m => m.Monto).ToString("C2") }))
+                .Espacio()
                 .Subtitulo("Movimientos")
-                .Tabla(new[] { "Fecha", "Tipo", "Categoría / motivo", "Detalle", "Medio", "Monto", "Estado" },
-                       new[] { 2.2f, 1.3f, 2f, 4f, 1.8f, 1.8f, 1.4f },
+                .Tabla(new[] { "Fecha", "Tipo", "Categoría / motivo", "Grupo", "Detalle", "Medio", "Monto", "Estado" },
+                       new[] { 2.2f, 1.3f, 2f, 1.8f, 3.5f, 1.8f, 1.8f, 1.4f },
                        movimientos.OrderBy(m => m.Fecha).Select(m => new[]
                        {
-                           m.Fecha.ToString("dd/MM HH:mm"), m.Tipo.ToString(), m.Clasificacion, m.Detalle,
+                           m.Fecha.ToString("dd/MM HH:mm"), m.Tipo.ToString(), m.Clasificacion, m.Grupo, m.Detalle,
                            m.MedioPago, m.MontoConSigno.ToString("C2"), m.Anulado ? "Anulado" : "Vigente"
                        }));
 

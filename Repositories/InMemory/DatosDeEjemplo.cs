@@ -95,11 +95,13 @@ namespace CooperadoraISFT94.Repositories.InMemory
                                      CajaTotalMedioPagoRepository.Instancia, auditoria, Reloj);
             _ingresos = new IngresoService(UsuarioRepository.Instancia, MedioPagoRepository.Instancia, registrador, Reloj);
             _egresos = new EgresoService(UsuarioRepository.Instancia, MedioPagoRepository.Instancia,
-                                         MotivoEgresoRepository.Instancia, registrador, Reloj);
+                                         MotivoEgresoRepository.Instancia, GrupoEgresoRepository.Instancia, registrador, Reloj);
             _movimientos = new MovimientoService(MovimientoRepository.Instancia, DetalleIngresoCuotaRepository.Instancia,
                                                  MedioPagoRepository.Instancia, CajaRepository.Instancia,
-                                                 UsuarioRepository.Instancia, CuotaRepository.Instancia, registrador, auditoria);
-            _catalogos = new CatalogoService(MedioPagoRepository.Instancia, MotivoEgresoRepository.Instancia, auditoria);
+                                                 UsuarioRepository.Instancia, CuotaRepository.Instancia, GrupoEgresoRepository.Instancia,
+                                                 registrador, auditoria);
+            _catalogos = new CatalogoService(MedioPagoRepository.Instancia, MotivoEgresoRepository.Instancia,
+                                             GrupoEgresoRepository.Instancia, auditoria);
             _usuarios = new UsuarioService(UsuarioRepository.Instancia, auditoria);
 
             _operador2Id = _usuarios.Registrar(
@@ -194,7 +196,8 @@ namespace CooperadoraISFT94.Repositories.InMemory
             if (desde.Month is 4 or 8 or 11)
                 eventos.Add((Momento(), () => Ingreso(CategoriaIngreso.Subsidio, 150_000m)));
             // Servicios (luz, internet...) todos los meses, y otros gastos variables.
-            eventos.Add((desde.AddDays(Math.Min(9, dias - 1)).AddHours(11), () => Egreso("Servicios", Redondear(_azar.Next(18_000, 32_000), 100))));
+            eventos.Add((desde.AddDays(Math.Min(9, dias - 1)).AddHours(11), () =>
+                Egreso("Servicios", "Administración", Redondear(_azar.Next(18_000, 32_000), 100))));
             for (var i = 0; i < 3 + _azar.Next(3); i++)
                 eventos.Add((Momento(), () => Egreso()));
 
@@ -288,7 +291,7 @@ namespace CooperadoraISFT94.Repositories.InMemory
         }
 
         /// <summary>Gasto de la caja; sin monto, uno al azar acotado a lo que hay. Nunca deja la caja en negativo.</summary>
-        private void Egreso(string? motivoNombre = null, decimal? monto = null)
+        private void Egreso(string? motivoNombre = null, string? grupoNombre = null, decimal? monto = null)
         {
             var disponible = CajaRepository.Instancia.ObtenerActiva()!.MontoTotal;
             if (disponible < 10_000m) return;
@@ -299,8 +302,11 @@ namespace CooperadoraISFT94.Repositories.InMemory
             var motivo = motivoNombre is null
                 ? motivos[_azar.Next(motivos.Count)]
                 : motivos.First(m => m.Nombre == motivoNombre);
+            // Un mismo motivo (por ejemplo, mantenimiento) puede ser un gasto de los estudiantes o de la administración.
+            var nombreGrupo = grupoNombre ?? _azar.NextDouble() switch { < 0.45 => "Estudiantes", < 0.85 => "Administración", _ => "Otros" };
+            var grupo = _catalogos.ObtenerGruposEgreso().First(g => g.Nombre == nombreGrupo);
             var medio = _azar.NextDouble() < 0.7 ? Medio("Efectivo") : Medio("Transferencia");
-            _egresos.Registrar(new EgresoCrearDto(importe, motivo.Id, medio), _contadorId);
+            _egresos.Registrar(new EgresoCrearDto(importe, motivo.Id, grupo.Id, medio), _contadorId);
         }
 
         private void AbrirCaja()

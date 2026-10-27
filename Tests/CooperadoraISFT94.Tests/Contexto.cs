@@ -20,6 +20,7 @@ namespace CooperadoraISFT94.Tests
         public CuotaRepository Cuotas { get; } = new();
         public MedioPagoRepository Medios { get; } = new();
         public MotivoEgresoRepository Motivos { get; } = new();
+        public GrupoEgresoRepository Grupos { get; } = new();
         public MovimientoRepository Movimientos { get; } = new();
         public CajaRepository Cajas { get; } = new();
         public CajaTotalMedioPagoRepository Totales { get; } = new();
@@ -44,6 +45,8 @@ namespace CooperadoraISFT94.Tests
         public MedioPago Efectivo { get; }
         public MedioPago Transferencia { get; }
         public MotivoEgreso Materiales { get; }
+        public GrupoEgreso Estudiantes { get; }
+        public GrupoEgreso Administracion { get; }
 
         public Contexto()
         {
@@ -53,19 +56,22 @@ namespace CooperadoraISFT94.Tests
             Auth = new AuthService(Usuarios, Reloj);
             UsuariosServicio = new UsuarioService(Usuarios, Auditoria);
             SociosServicio = new SocioService(Socios, Auditoria);
-            Catalogos = new CatalogoService(Medios, Motivos, Auditoria);
+            Catalogos = new CatalogoService(Medios, Motivos, Grupos, Auditoria);
             CajasServicio = new CajaService(Cajas, Movimientos, Totales, Auditoria, Reloj);
             Registrador = new MovimientoRegistrador(Movimientos, Cajas, Totales, Auditoria, Reloj);
             CuotasServicio = new CuotaService(Cuotas, Socios, Usuarios, Medios, Detalles, Valores, Registrador, Auditoria, Reloj);
             Ingresos = new IngresoService(Usuarios, Medios, Registrador, Reloj);
-            Egresos = new EgresoService(Usuarios, Medios, Motivos, Registrador, Reloj);
-            MovimientosServicio = new MovimientoService(Movimientos, Detalles, Medios, Cajas, Usuarios, Cuotas, Registrador, Auditoria);
+            Egresos = new EgresoService(Usuarios, Medios, Motivos, Grupos, Registrador, Reloj);
+            MovimientosServicio = new MovimientoService(Movimientos, Detalles, Medios, Cajas, Usuarios, Cuotas, Grupos,
+                                                        Registrador, Auditoria);
 
             Operador = Usuarios.Agregar(new Usuario("operador", "Omar", "Operador", PasswordHasher.Hashear("operador123"), true, Rol.Operador));
             Contador = Usuarios.Agregar(new Usuario("contador", "Carla", "Contadora", PasswordHasher.Hashear("contador123"), true, Rol.Contador));
             Efectivo = Medios.Agregar(new MedioPago("Efectivo"));
             Transferencia = Medios.Agregar(new MedioPago("Transferencia"));
             Materiales = Motivos.Agregar(new MotivoEgreso("Materiales"));
+            Estudiantes = Grupos.Agregar(new GrupoEgreso("Estudiantes"));
+            Administracion = Grupos.Agregar(new GrupoEgreso("Administración"));
         }
 
         public Socio Socio(string dni = "30123456", Categoria categoria = Categoria.Socio, Socio? responsable = null)

@@ -29,12 +29,13 @@ Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
          │           └─ Socio    (Categoria, Activo, Responsable?) ──► Socio (Responsable)
          ├─ Movimiento (abstracta: Usuario, Fecha, Monto, MedioPago, Caja, Anulado, AfectarCaja(), Anular())
          │     ├─ Ingreso (CategoriaIngreso)
-         │     └─ Egreso  (MotivoEgreso)
+         │     └─ Egreso  (MotivoEgreso, GrupoEgreso)
          ├─ Cuota (Socio, Monto, Anio, Estado) ◄── DetalleIngresoCuota (PagadaPor?) ──► Ingreso
          ├─ ValorCuota (Anio, Monto)
          ├─ Caja (MontoInicial, MontoTotal, Estado) ◄── CajaTotalMedioPago ──► MedioPago
          ├─ ItemCatalogo (Nombre, Activo) ─┬─ MedioPago
-         │                                 └─ MotivoEgreso
+         │                                 ├─ MotivoEgreso
+         │                                 └─ GrupoEgreso
          └─ Auditoria (Usuario, Accion, EntidadAfectada, EntidadId, Fecha, Detalle)
 ```
 
@@ -71,8 +72,11 @@ Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
 - **Socios:** se editan (validando todo junto) y se dan de baja con baja lógica (`Activo`): conservan cuotas y pagos,
   no reciben cuotas nuevas y no pueden ser responsables. Un responsable con socios a cargo no puede dejar de serlo
   ni darse de baja hasta reasignarlos. Un `Responsable` no puede tener responsable.
-- **Catálogos:** medios de pago y motivos de egreso heredan de `ItemCatalogo`. El administrador los agrega, renombra
+- **Catálogos:** medios de pago, motivos de egreso y grupos de egreso heredan de `ItemCatalogo`. El administrador los agrega, renombra
   (sin repetir nombres) y desactiva; los inactivos no se ofrecen ni se aceptan en movimientos nuevos.
+- **Grupo de egreso:** cada egreso indica a quién corresponde el gasto (Estudiantes, Administración, Otros). Se elige
+  aparte del motivo, porque un mismo motivo (por ejemplo, un arreglo de computadora) puede ser de cualquier grupo.
+  Los movimientos se filtran por grupo y el resumen impreso de caja totaliza los egresos por grupo.
 - **Auditoría:** cada servicio llama a `IAuditoriaService.Registrar` al dar de alta / modificar / dar de baja, con un
   detalle de qué cambió (`DescripcionCambios`: "Rol: Operador → Contador"). Solo la ve el administrador, con filtros.
 - **Login:** 5 intentos fallidos seguidos bloquean ese nombre de usuario por 5 minutos (también si no existe, para no
@@ -99,7 +103,7 @@ Entidad ─┬─ Persona ─┬─ Usuario  (Rol, Activo)
 tests) que reciben sus dependencias y un reloj (`Func<DateTime>`), así cada test arma los suyos con datos propios
 (`Contexto`). El `.csproj` de la app excluye la carpeta `Tests/` para no compilarla adentro.
 
-### Agregar un medio de pago o motivo de egreso
+### Agregar un medio de pago, motivo o grupo de egreso
 Desde la pestaña "Catálogos" del administrador. Los datos de ejemplo se cargan en `DatosIniciales`.
 
 ### Diferencias deliberadas con el UML
